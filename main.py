@@ -1,59 +1,53 @@
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse, JSONResponse
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.client.default import DefaultBotProperties
-from aiogram.exceptions import TelegramAPIError, TelegramUnauthorizedError
-from aiogram.utils.token import TokenValidationError
-from aiogram.enums import ParseMode
+from aiogram.exceptions import TelegramUnauthorizedError
 from aiogram.types import Update
 
 from contextlib import asynccontextmanager
 import uvicorn
 
-
 from handlers.main_bot import main_bot_router
 from handlers.user_bot import user_bot_router
-from database.requests import *
+from database.requests import bot_rq, user_rq
 from database.models import init_models
 from services.security import crypto
 from services.scheduler import start_scheduler, stop_scheduler
+from services.payment_link import send_success_message  # Перенесли логику в сервис
 from loggers import logger
-from services.funnel_message import send_funnel_node_message
 from config import (
     WEBHOOK_URL,
     WEBHOOK_PORT,
     MAIN_BOT_TOKEN,
     SECRET_KEY,
 )
+from schemas.main_schemas import HealthCheckResponse, BotCreateResponse
 
 dp = Dispatcher()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 1. Создаем объукт бота и диспечера
+    # Регистрация роутеров
     if main_bot_router not in dp.sub_routers:
         dp.include_router(main_bot_router)
     if user_bot_router not in dp.sub_routers:
         dp.include_router(user_bot_router)
 
-    # Инициализируем модели БД (создаем таблицы, если их нет)
     await init_models()
-
-    # Запускаем наш вынесенный планировщик
     start_scheduler()
 
     session = AiohttpSession()
     main_bot = Bot(
         token=MAIN_BOT_TOKEN,
         session=session,
-        default=DefaultBotProperties(parse_mode=ParseMode.HTML),
+        default=DefaultBotProperties(parse_mode="HTML"),
     )
 
-    # 2. Сохраняем их в состояние приложения, чтобы потом достать в обработчике
     app.state.session = session
     app.state.main_bot = main_bot
 
@@ -62,15 +56,11 @@ async def lifespan(app: FastAPI):
         secret_token=SECRET_KEY,
         drop_pending_updates=True,
     )
-    logger.info(f"Вебхук главного бота успешно установлен ✅")
+    logger.info("Вебхук главного бота успешно установлен ✅")
 
-    yield  # Сервер работает
+    yield
 
-    # Останавливаем при выключении сервера
     await stop_scheduler()
-
-    # 3. При выключении достаем сессию и закрываем
-    logger.info("Остановка приложения, закрытие сетевых сессий...")
     if app.state.session:
         await app.state.session.close()
     logger.info("Все соединения успешно закрыты.")
@@ -78,6 +68,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan, title="Telegram Bot Constructor Backend")
 
+# ВНИМАНИЕ: Ограничьте origins в продакшене!
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -87,118 +78,94 @@ app.add_middleware(
 )
 
 
-@app.get("/")
+@app.get("/", response_model=HealthCheckResponse)
 async def health_check():
     return {"status": "healthy"}
 
 
 # =====================================================================
-# ЭНДПОИНТ 1: Обработка вебхуков Главного Бота-Конструктора
+# ЭНДПОИНТ 1: Обработка вебхуков Главного Бота
 # =====================================================================
 @app.post("/webhook/main")
 async def main_bot_webhook(request: Request):
-    # Проверка секретного токена для безопасности
     if request.headers.get("X-Telegram-Bot-Api-Secret-Token") != SECRET_KEY:
         logger.warning("Попытка несанкционированного доступа к вебхуку главного бота")
         raise HTTPException(status_code=403, detail="Invalid secret token")
 
     update_data = await request.json()
     update = Update(**update_data)
-
-    # Достаем бота из состояния приложения
-    main_bot: Bot = request.app.state.main_bot
-
-    await dp.feed_update(main_bot, update)
+    await dp.feed_update(request.app.state.main_bot, update)
     return {"status": "ok"}
 
 
 # =====================================================================
-# ЭНДПОИНТ 2: Универсальный вебхук для всех клиентских ботов
+# ЭНДПОИНТ 2: Универсальный вебхук для клиентских ботов
 # =====================================================================
-@app.post("/webhook/bots/{bot_id}")
-async def client_bots_webhook(bot_id: str, request: Request):
-    # Проверка секретного токена для безопасности
+@app.post("/webhook/bots/{bot_db_id}")
+async def client_bots_webhook(bot_db_id: int, request: Request):
     if request.headers.get("X-Telegram-Bot-Api-Secret-Token") != SECRET_KEY:
-        logger.warning(
-            f"Попытка несанкционированного доступа к вебхуку бота {bot_id}"
-        )
         raise HTTPException(status_code=403, detail="Invalid secret token")
 
-    # Получите токен бота по bot_id из вашей базы данных
-    client_bot = await get_bot(int(bot_id))
-
-    if not client_bot:
-        logger.warning(
-            f"Попытка обращения к несуществующему или удаленному bot_id: {bot_id}"
-        )
+    bot_config = await bot_rq.get_bot_by_id(bot_db_id)
+    if not bot_config:
         raise HTTPException(status_code=404, detail="Bot not found")
 
-    # ТУТ БД ЗАПРОС
-    real_token = crypto.decrypt(client_bot.bot_token_enc)
-
     try:
-        http_sesion = request.app.state.session
-        client_bot = Bot(
-            token=real_token,
-            session=http_sesion,
-            default=DefaultBotProperties(parse_mode=ParseMode.HTML),
-        )
-
-        update_data = await request.json()
-        update = Update(**update_data)
-
-        await dp.feed_update(client_bot, update)
+        token = crypto.decrypt(bot_config.bot_token_enc)
+        async with Bot(
+            token=token,
+            session=request.app.state.session,
+            default=DefaultBotProperties(parse_mode="HTML"),
+        ) as bot:
+            update_data = await request.json()
+            update = Update(**update_data)
+            await dp.feed_update(bot, update)
         return {"status": "ok"}
 
     except TelegramUnauthorizedError:
-        # Специфическая ошибка: токен бота отозван (пользователь удалил бота в @BotFather)
-        logger.error(
-            f"Токен для bot_id {bot_id} недействителен (Unauthorized). Отключаем бота."
-        )
-        # Тут по-хорошему надо пойти в БД и поставить `is_active = False` для этого bot_id
-        return JSONResponse(
-            status_code=410, content={"detail": "Bot token expired or revoked"}
-        )
-
+        logger.error(f"Токен для бота {bot_db_id} недействителен. Отключаем.")
+        return JSONResponse(status_code=410, content={"detail": "Token revoked"})
     except Exception as e:
-        # Все остальные непредвиденные ошибки (ошибки в коде хэндлеров, баги бэкенда)
-        logger.exception(f"Глобальный сбой обработки вебхука для bot_id {bot_id}: {e}")
-        return JSONResponse(
-            status_code=500, content={"detail": "Internal Server Error"}
-        )
+        logger.exception(f"Ошибка вебхука бота {bot_db_id}: {e}")
+        return JSONResponse(status_code=500, content={"detail": "Error"})
 
 
-@app.post("/create/bots/{bot_token}")
-async def create_client_bot(bot_token: str, request: Request):
+@app.post("/test/set_webhook/{bot_token}")
+async def test_set_webhook(bot_token: str, request: Request):
+    """
+    Позволяет быстро перепривязать любого бота к текущему WEBHOOK_URL.
+    Нужно, так как ngrok меняет ссылки после перезапуска.
+    """
     try:
-
-        shared_session = request.app.state.session
-        temp_bot = Bot(token=bot_token, session=shared_session)
-
-        await temp_bot.set_webhook(
-            url=f"{WEBHOOK_URL}/webhook/bots/{1}",
-            secret_token=SECRET_KEY,
-            drop_pending_updates=True,
+        temp_bot = Bot(
+            token=bot_token, 
+            session=request.app.state.session,
+            default=DefaultBotProperties(parse_mode="HTML")
         )
-
-        logger.info(f"Бот ID {1} успешно запущен, вебхук зарегистрирован.")
+        
+        # Для теста привязываем к bot_id = 1
+        target_url = f"{WEBHOOK_URL}/webhook/bots/1"
+        
+        await temp_bot.set_webhook(
+            url=target_url,
+            secret_token=SECRET_KEY,
+            drop_pending_updates=True
+        )
+        
+        logger.info(f"Тестовая перепривязка вебхука для токена ...{bot_token[-5:]} выполнена.")
         return {
-            "status": "ok",
-            "message": "Бот успешно запущен и готов к работе!",
-            "webhook_url": f"{WEBHOOK_URL}/webhook/bots/{1}",
+            "status": "ok", 
+            "message": "Webhook updated!", 
+            "new_url": target_url
         }
-    except TokenValidationError as e:
-        logger.error(f"Ошибка валидации токена при создании бота: {e}")
+    except Exception as e:
+        logger.error(f"Ошибка в тестовом эндпоинте set_webhook: {e}")
         return JSONResponse(status_code=400, content={"detail": str(e)})
 
 
-# ⚡️ ЕДИНЫЙ УНИВЕРСАЛЬНЫЙ ВЕБХУК
-# Ссылка, которую ты даешь клиенту, будет выглядеть так:
-# Для ЮKassa:    https://api.tvoy-saas.ru/webhook/payments/yookassa/5
-# Для Продамус:  https://api.tvoy-saas.ru/webhook/payments/prodamus/5
-# Для Робокассы: https://api.tvoy-saas.ru/webhook/payments/robokassa/5
-
-
+# =====================================================================
+# ЭНДПОИНТ 3: Универсальный вебхук оплат
+# =====================================================================
 @app.post("/webhook/payments/{provider}/{tg_bot_id}")
 async def universal_payment_webhook(provider: str, tg_bot_id: int, request: Request):
     provider = provider.lower()
@@ -206,13 +173,12 @@ async def universal_payment_webhook(provider: str, tg_bot_id: int, request: Requ
     inv_id = None
 
     try:
-        # ==========================================
-        # 1. ПАРСИНГ ТЕЛЕГРАМ ID
-        # ==========================================
+        # Парсинг данных в зависимости от кассы
         if provider == "prodamus":
             data = await request.form()
+            print(data)
             if data.get("payment_status") == "success":
-                order_id_raw = data.get("order_id", "0")
+                order_id_raw = data.get("order_num", "0")
                 telegram_id = int(str(order_id_raw).split("_")[0])
 
         elif provider == "yookassa":
@@ -227,91 +193,35 @@ async def universal_payment_webhook(provider: str, tg_bot_id: int, request: Requ
             telegram_id = int(data.get("shp_telegram_id", 0))
             inv_id = data.get("InvId")
 
-        else:
-            raise HTTPException(
-                status_code=404, detail="Неизвестный платежный провайдер"
-            )
-
-        # ==========================================
-        # 2. БИЗНЕС-ЛОГИКА (ВЫДАЧА ДОСТУПА)
-        # ==========================================
         if telegram_id and telegram_id > 0:
             logger.info(
-                f"💰 Успешная оплата [{provider.upper()}] для бота {tg_bot_id}! Юзер: {telegram_id}"
+                f"💰 Оплата [{provider.upper()}] для бота {tg_bot_id}, юзер {telegram_id}"
             )
 
-            # Меняем статус в БД и удаляем дожимы (используем именно tg_bot_id!)
-            await mark_lead_as_successful(tg_bot_id=tg_bot_id, telegram_id=telegram_id)
+            # Обновляем статус в БД (все запросы через user_rq)
+            await user_rq.mark_lead_as_successful(
+                tg_bot_id=tg_bot_id, telegram_id=telegram_id
+            )
 
-            # Отправляем сообщение успеха напрямую из вебхука,
-            # передавая глобальную aiohttp-сессию! ⚡️
+            # Отправляем сообщение об успехе через сервис
             await send_success_message(
                 tg_bot_id=tg_bot_id,
                 telegram_id=telegram_id,
                 http_session=request.app.state.session,
             )
 
-            # ==========================================
-            # 3. СПЕЦИФИЧНЫЕ ОТВЕТЫ ДЛЯ КАСС
-            # ==========================================
+            # Ответы для касс
             if provider == "prodamus":
                 return PlainTextResponse("OK")
-            elif provider == "robokassa":
+            if provider == "robokassa":
                 return PlainTextResponse(f"OK{inv_id}")
-            elif provider == "yookassa":
-                return JSONResponse({"status": "ok"})
+            return JSONResponse({"status": "ok"})
 
-        # Возвращаем OK для любых других тестовых запросов кассы,
-        # чтобы они не долбили нас повторными попытками
         return PlainTextResponse("OK")
 
     except Exception as e:
-        logger.error(f"Ошибка обработки вебхука {provider} для бота {tg_bot_id}: {e}")
-        raise HTTPException(
-            status_code=500, detail="Внутренняя ошибка обработки вебхука"
-        )
-
-
-async def send_success_message(
-    tg_bot_id: int, telegram_id: int, http_session: AiohttpSession
-):
-    """
-    Вспомогательная функция: достает настройки бота и отправляет node_success
-    """
-    async with async_session() as session:
-        bot_config = await session.scalar(
-            select(BotConfig).where(BotConfig.tg_bot_id == tg_bot_id)
-        )
-
-    if not bot_config or not bot_config.funnel_schema:
-        return
-
-    try:
-        token = crypto.decrypt(bot_config.bot_token_enc)
-        funnel = FunnelSchema.model_validate(bot_config.funnel_schema)
-        node_success = funnel.nodes.get("node_success")
-
-        if node_success:
-            # ⚡️ Передаем общую сессию из аргументов!
-            bot = Bot(
-                token=token,
-                session=http_session,
-                default=DefaultBotProperties(parse_mode=ParseMode.HTML),
-            )
-
-            # Отправляем сообщение
-            await send_funnel_node_message(
-                bot=bot, chat_id=telegram_id, node=node_success
-            )
-
-            # ВАЖНО: Мы больше НЕ вызываем await bot.session.close(),
-            # потому что это убьет общую сессию нашего приложения!
-            logger.info(f"✅ Сообщение с доступом отправлено лиду {telegram_id}")
-
-    except Exception as e:
-        logger.error(
-            f"Не удалось отправить сообщение об успехе лиду {telegram_id}: {e}"
-        )
+        logger.error(f"Ошибка вебхука {provider}: {e}")
+        raise HTTPException(status_code=500)
 
 
 if __name__ == "__main__":

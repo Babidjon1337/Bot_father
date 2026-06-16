@@ -186,3 +186,42 @@ async def _create_prodamus_link(
         logger.error(f"Ошибка при получении ссылки Prodamus: {e}")
     
     return None
+
+
+async def send_success_message(
+    tg_bot_id: int, telegram_id: int, http_session: Any
+):
+    """
+    Вспомогательная функция: достает настройки бота и отправляет node_success.
+    Вынесено в сервис для чистоты main.py.
+    """
+    from database.requests.bot_rq import get_bot_by_tg_id
+    from schemas.funnel import FunnelSchema
+    from services.funnel_message import send_funnel_node_message
+    from aiogram import Bot
+    from aiogram.client.default import DefaultBotProperties
+
+    bot_config = await get_bot_by_tg_id(tg_bot_id)
+
+    if not bot_config or not bot_config.funnel_schema:
+        return
+
+    try:
+        token = crypto.decrypt(bot_config.bot_token_enc)
+        funnel = FunnelSchema.model_validate(bot_config.funnel_schema)
+        node_success = funnel.nodes.get("node_success")
+
+        if node_success:
+            bot = Bot(
+                token=token,
+                session=http_session,
+                default=DefaultBotProperties(parse_mode="HTML"),
+            )
+
+            await send_funnel_node_message(
+                bot=bot, chat_id=telegram_id, node=node_success
+            )
+            logger.info(f"✅ Сообщение об успехе отправлено {telegram_id}")
+
+    except Exception as e:
+        logger.error(f"Ошибка отправки сообщения пользователю {telegram_id}: {e}")
