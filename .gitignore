@@ -49,4 +49,4 @@ uploads/
 tmp/
 temp/
 
-test.py
+test*
