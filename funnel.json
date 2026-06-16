@@ -1,0 +1,93 @@
+{
+  "global_settings": {
+    "legal_offer_url": "https://client-site.com/offer",
+    "legal_privacy_url": "https://client-site.com/privacy",
+    "payment_amount": 1500.0
+  },
+
+  "nodes": {
+    "node_start": {
+      "type": "message",
+      "content": {
+        "media": {
+          "type": null,
+          "file_id": null
+        },
+        "text": "Привет! Посмотри это видео и выбирай тариф👇"
+      },
+      "button": {
+        "type": "payment",
+        "text": "💳 Оплатить доступ"
+      },
+      "timer": {
+        "delay_seconds": 12,
+        "next_node_id": "node_dozhim_1"
+      }
+    },
+
+    "node_dozhim_1": {
+      "type": "message",
+      "content": {
+        "media": {
+          "type": "photo",
+          "file_id": "AgACAgIAAxkBAAIidWoxUw7eZEXgpy-0yKKL3q4nyqEwAAJhHGsbu3iISamfRq6YrufWAQADAgADeQADPAQ"
+        },
+        "text": "Ты забыл завершить покупку! Держи фото-напоминание 📸"
+      },
+      "button": {
+        "type": "payment",
+        "text": "💳 Завершить оплату"
+      },
+      "timer": {
+        "delay_seconds": 12,
+        "next_node_id": "node_dozhim_2"
+      }
+    },
+
+    "node_dozhim_2": {
+      "type": "message",
+      "content": {
+        "media": {
+          "type": "video",
+          "file_id": "BAACAgIAAxkBAAIieGoxU7cdsw_YQeN7Ltl6bjhgf9ySAAK0nwACklaJSfYISo0Nszk1PAQ"
+        },
+        "text": "Последний шанс! Завтра ссылка сгорит 🔥"
+      },
+      "button": {
+        "type": "payment",
+        "text": "💳 Оплатить сейчас"
+      },
+      "timer": null
+    },
+
+    "node_checkout": {
+      "type": "checkout",
+      "loading_text": "⏳ Формируем персональный счет на оплату...",
+      "content": {
+        "media": {
+          "type": null,
+          "file_id": null
+        },
+        "text": "<b>Ваш счет готов!</b>\n\nК оплате: 1500₽\nНажмите кнопку ниже:"
+      },
+      "button": {
+        "type": "url",
+        "text": "💸 Оплатить 1500₽"
+      },
+      "timer": null
+    },
+
+    "node_success": {
+      "type": "message",
+      "content": {
+        "media": {
+          "type": null,
+          "file_id": null
+        },
+        "text": "Успешная оплата! Вот твой доступ: https://t.me/joinchat/..."
+      },
+      "button": null,
+      "timer": null
+    }
+  }
+}
