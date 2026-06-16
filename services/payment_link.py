@@ -4,14 +4,14 @@ import hashlib
 import uuid
 import random
 import httpx
-from typing import Optional
-from urllib.parse import urlencode, quote, quote_plus  # ⚡️ Добавили quote для RFC 3986
+from typing import Any, Optional
+from urllib.parse import urlencode, quote
 from database.models import BotConfig
 from services.security import crypto
 from loggers import logger
 
-# Используем единый асинхронный клиент для оптимизации сетевых запросов
-http_client = httpx.AsyncClient(timeout=10.0)
+# Используем единый асинхронный клиент
+http_client = httpx.AsyncClient(timeout=10.0, follow_redirects=True)
 
 
 async def generate_payment_link(
@@ -54,7 +54,6 @@ async def _create_yookassa_link(
 ) -> Optional[str]:
     """
     Генерирует счет в ЮKassa.
-    Требует в creds: shop_id (ID магазина) и api_key (Секретный ключ)
     """
     shop_id = creds.get("shop_id")
     api_key = creds.get("api_key")
@@ -72,18 +71,14 @@ async def _create_yookassa_link(
         "confirmation": {"type": "redirect", "return_url": "https://t.me/telegram"},
         "description": description,
         "metadata": {"telegram_id": str(telegram_id)},
-        # ⚡️ ДОБАВЛЯЕМ ДАННЫЕ ДЛЯ ЧЕКА (ОБЯЗАТЕЛЬНО ПРИ 54-ФЗ)
         "receipt": {
-            "customer": {
-                # ЮКасса требует email или телефон. Генерируем технический email.
-                "email": f"client_{telegram_id}@telegram-bot.ru"
-            },
+            "customer": {"email": f"client_{telegram_id}@telegram-bot.ru"},
             "items": [
                 {
-                    "description": description,  # Название товара
+                    "description": description,
                     "quantity": "1.00",
                     "amount": {"value": f"{amount:.2f}", "currency": "RUB"},
-                    "vat_code": 1,  # 1 - Без НДС (подходит для ИП на УСН/Патенте и самозанятых)
+                    "vat_code": 1,
                     "payment_mode": "full_prepayment",
                     "payment_subject": "service",
                 }
@@ -115,12 +110,9 @@ def _create_robokassa_link(
 ) -> Optional[str]:
     """
     Генерирует платежную ссылку Робокассы.
-    Автоматически добавляет IsTest=1 для тестового режима.
     """
     merchant_login = creds.get("merchant_login")
     password_1 = creds.get("password_1")
-
-    # ⚡️ Извлекаем флаг тестового режима из конфига кассы (по умолчанию True для безопасности)
     is_test = creds.get("is_test", True)
 
     if not merchant_login or not password_1:
@@ -141,7 +133,6 @@ def _create_robokassa_link(
         "shp_telegram_id": str(telegram_id),
     }
 
-    # ⚡️ Если включен тестовый режим — добавляем IsTest=1 в параметры запроса
     if is_test:
         params["IsTest"] = "1"
 
@@ -153,12 +144,60 @@ def _create_robokassa_link(
 # ==========================================
 # 3. ИНТЕГРАЦИЯ PRODAMUS
 # ==========================================
+
+
+def _to_str_values(obj: Any) -> Any:
+    if isinstance(obj, dict):
+        return {k: _to_str_values(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_to_str_values(v) for v in obj]
+    if obj is None:
+        return ""
+    return str(obj)
+
+
+def _sort_deep(obj: Any) -> Any:
+    if isinstance(obj, dict):
+        return {k: _sort_deep(obj[k]) for k in sorted(obj.keys())}
+    if isinstance(obj, list):
+        return [_sort_deep(v) for v in obj]
+    return obj
+
+
+def _canonical_json_for_signature(data: dict) -> str:
+    normalized = _sort_deep(_to_str_values(data))
+    json_str = json.dumps(normalized, ensure_ascii=False, separators=(",", ":"))
+    return json_str.replace("/", r"\/")
+
+
+def _sign_prodamus_payload(data: dict, secret_key: str) -> str:
+    canonical = _canonical_json_for_signature(data)
+    return hmac.new(
+        secret_key.encode("utf-8"),
+        canonical.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+
+def _flatten_query(prefix: str, value: Any):
+    items = []
+    if isinstance(value, dict):
+        for k in sorted(value.keys()):
+            items.extend(_flatten_query(f"{prefix}[{k}]", value[k]))
+    elif isinstance(value, list):
+        for i, v in enumerate(value):
+            items.extend(_flatten_query(f"{prefix}[{i}]", v))
+    else:
+        items.append((prefix, str(value)))
+    return items
+
+
 async def _create_prodamus_link(
     creds: dict, amount: float, description: str, telegram_id: int
 ) -> Optional[str]:
     """
-    Генерирует ссылку на оплату в Prodamus через API (метод do=link).
-    Возвращает короткую ссылку, которую генерирует сервер Продамуса.
+    Генерирует короткую ссылку на оплату в Prodamus.
+    Бот сам обращается к API (do=link) и вытягивает готовую короткую ссылку.
     """
     payment_page = creds.get("payment_page")
     api_key = creds.get("api_key")
@@ -172,48 +211,62 @@ async def _create_prodamus_link(
     # Защита от дублей номеров заказов
     order_id = f"{telegram_id}_{random.randint(100000, 999999)}"
 
-    # Используем do=link для получения короткой ссылки и предзаполнения формы
-    params = {
+    # 1. Формируем полезную нагрузку
+    payload = {
         "do": "link",
         "order_id": order_id,
-        "products[0][name]": description,
-        "products[0][price]": f"{amount:.2f}",
-        "products[0][quantity]": "1",
-        "sum": f"{amount:.2f}",
+        "products": [
+            {
+                "name": description,
+                "price": f"{amount:.2f}",
+                "quantity": "1",
+                "type": "service",
+            }
+        ],
+        "customer_email": f"client_{telegram_id}@telegram.bot",
     }
 
-    # 1. Сортируем параметры по ключам (алфавитный порядок как в ksort PHP)
-    ordered_params = [(k, params[k]) for k in sorted(params.keys())]
+    # 2. Подписываем (JSON канонизация)
+    signature = _sign_prodamus_payload(payload, api_key)
+    payload["signature"] = signature
 
-    # 2. Формируем query string (как делает PHP http_build_query)
-    query_string = urlencode(ordered_params)
+    # 3. Сериализуем для запроса
+    query_items = []
+    for key in sorted(payload.keys()):
+        value = payload[key]
+        if isinstance(value, (dict, list)):
+            query_items.extend(_flatten_query(key, value))
+        else:
+            query_items.append((key, value))
 
-    # 3. Вычисляем HMAC-SHA256 подпись
-    signature = hmac.new(
-        key=api_key.encode("utf-8"),
-        msg=query_string.encode("utf-8"),
-        digestmod=hashlib.sha256,
-    ).hexdigest()
-
-    # 4. Добавляем подпись к параметрам
-    params["signature"] = signature
+    query_string = urlencode(query_items, quote_via=quote, safe="[]")
+    request_url = f"{payment_page}/?{query_string}"
 
     try:
-        # Отправляем POST запрос к Продамусу, чтобы получить короткую ссылку
-        response = await http_client.post(payment_page, data=params)
-
+        # 4. Бот сам идет по ссылке do=link, чтобы получить короткий URL
+        response = await http_client.get(request_url)
+        
         if response.status_code == 200:
-            short_url = response.text.strip()
-            if short_url.startswith("http"):
-                logger.info(f"Получена короткая ссылка Prodamus: {short_url}")
-                return short_url
-            else:
-                logger.error(f"Продамус вернул ошибку: {short_url}")
-                return None
+            content = response.text.strip()
+            # Продамус возвращает саму ссылку в теле ответа (иногда внутри HTML)
+            if "http" in content:
+                import re
+                # Ищем любую ссылку payform.ru в ответе
+                found_urls = re.findall(r'https?://[^\s<>"]+', content)
+                for url in found_urls:
+                    if "payform.ru" in url and "/?" not in url: # Ищем именно короткую
+                        logger.info(f"Получена короткая ссылка Prodamus: {url}")
+                        return url
+                
+                # Если регулярка не нашла специфичную, вернем первую попавшуюся
+                return found_urls[0] if found_urls else None
+            
+            logger.error(f"Продамус не вернул ссылку в ответе: {content[:100]}")
+            return None
         else:
-            logger.error(f"Ошибка API Prodamus {response.status_code}: {response.text}")
+            logger.error(f"Ошибка API Prodamus (код {response.status_code})")
             return None
 
     except Exception as e:
-        logger.error(f"Сетевой сбой при обращении к Prodamus: {e}")
+        logger.error(f"Сетевой сбой при получении ссылки Prodamus: {e}")
         return None
