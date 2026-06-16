@@ -40,7 +40,7 @@ async def generate_payment_link(
     elif provider == "robokassa":
         return _create_robokassa_link(creds, amount, description, lead_telegram_id)
     elif provider == "prodamus":
-        return _create_prodamus_link(creds, amount, description, lead_telegram_id)
+        return await _create_prodamus_link(creds, amount, description, lead_telegram_id)
     else:
         logger.warning(f"Неподдерживаемый платежный провайдер: {provider}")
         return None
@@ -153,12 +153,12 @@ def _create_robokassa_link(
 # ==========================================
 # 3. ИНТЕГРАЦИЯ PRODAMUS
 # ==========================================
-def _create_prodamus_link(
+async def _create_prodamus_link(
     creds: dict, amount: float, description: str, telegram_id: int
 ) -> Optional[str]:
     """
-    Генерирует ссылку на оплату в Prodamus через HMAC-SHA256 подпись.
-    Специфическая сборка: кодируются только значения, ключи остаются сырыми (для [0]).
+    Генерирует ссылку на оплату в Prodamus через API (метод do=link).
+    Возвращает короткую ссылку, которую генерирует сервер Продамуса.
     """
     payment_page = creds.get("payment_page")
     api_key = creds.get("api_key")
@@ -169,11 +169,12 @@ def _create_prodamus_link(
 
     payment_page = payment_page.rstrip("/")
 
-    # Защита от дублей номеров заказов в Продамусе
+    # Защита от дублей номеров заказов
     order_id = f"{telegram_id}_{random.randint(100000, 999999)}"
 
+    # Используем do=link для получения короткой ссылки и предзаполнения формы
     params = {
-        "do": "pay",
+        "do": "link",
         "order_id": order_id,
         "products[0][name]": description,
         "products[0][price]": f"{amount:.2f}",
@@ -185,7 +186,6 @@ def _create_prodamus_link(
     ordered_params = [(k, params[k]) for k in sorted(params.keys())]
 
     # 2. Формируем query string (как делает PHP http_build_query)
-    # Используем urlencode, который корректно кодирует и ключи (скобки), и значения.
     query_string = urlencode(ordered_params)
 
     # 3. Вычисляем HMAC-SHA256 подпись
@@ -195,8 +195,25 @@ def _create_prodamus_link(
         digestmod=hashlib.sha256,
     ).hexdigest()
 
-    # 4. Собираем финальный URL
-    final_url = f"{payment_page}/?{query_string}&signature={signature}"
+    # 4. Добавляем подпись к параметрам
+    params["signature"] = signature
 
-    logger.info(f"Сгенерирована ссылка Prodamus для {telegram_id}: {order_id}")
-    return final_url
+    try:
+        # Отправляем POST запрос к Продамусу, чтобы получить короткую ссылку
+        response = await http_client.post(payment_page, data=params)
+
+        if response.status_code == 200:
+            short_url = response.text.strip()
+            if short_url.startswith("http"):
+                logger.info(f"Получена короткая ссылка Prodamus: {short_url}")
+                return short_url
+            else:
+                logger.error(f"Продамус вернул ошибку: {short_url}")
+                return None
+        else:
+            logger.error(f"Ошибка API Prodamus {response.status_code}: {response.text}")
+            return None
+
+    except Exception as e:
+        logger.error(f"Сетевой сбой при обращении к Prodamus: {e}")
+        return None
