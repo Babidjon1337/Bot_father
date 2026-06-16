@@ -59,6 +59,27 @@ async def process_payment_button(callback: CallbackQuery):
             return  # Если клик уже устарел, просто выходим
         raise
 
+    tg_bot_id = callback.bot.id
+    lead_id = callback.from_user.id
+
+    # ПРОВЕРКА: Если человек уже купил, мы не даем ему оплачивать снова
+    bot_config = await get_bot_by_tg_id(tg_bot_id)
+    if not bot_config:
+        return
+
+    from database.requests.user_rq import get_lead
+
+    lead = await get_lead(bot_config.id, lead_id)
+
+    if lead and (lead.has_purchased or lead.current_step_id == "node_success"):
+        try:
+            await callback.message.edit_reply_markup(reply_markup=None)
+            await callback.message.answer("Оплата по этому заказу уже получена. Спасибо!")
+        except TelegramBadRequest:
+            pass
+        return
+
+
     # 2. Убираем кнопку у ИСХОДНОГО сообщения (видео/текста)
     try:
         await callback.message.edit_reply_markup(reply_markup=None)

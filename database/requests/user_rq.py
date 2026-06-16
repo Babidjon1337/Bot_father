@@ -16,6 +16,14 @@ async def get_bot_by_tg_id(tg_bot_id: int):
         return bot
 
 
+async def get_lead(bot_id: int, telegram_id: int) -> Lead | None:
+    """Запрашивает лида по bot_id и telegram_id."""
+    async with async_session() as session:
+        return await session.scalar(
+            select(Lead).where(Lead.bot_id == bot_id, Lead.telegram_id == telegram_id)
+        )
+
+
 async def get_funnel_by_bot_id(tg_bot_id: int):
     async with async_session() as session:
         result = await session.scalar(
