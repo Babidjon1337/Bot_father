@@ -182,17 +182,11 @@ def _create_prodamus_link(
     }
 
     # 1. Сортируем параметры по ключам (алфавитный порядок как в ksort PHP)
-    sorted_keys = sorted(params.keys())
+    ordered_params = [(k, params[k]) for k in sorted(params.keys())]
 
-    # 2. Формируем query string вручную
-    # Важно: ключи (например, со скобками) НЕ кодируются, кодируются только значения.
-    # Это критично для некоторых реализаций HMAC в PHP-бэкендах.
-    raw_params = []
-    for key in sorted_keys:
-        value = str(params[key])
-        raw_params.append(f"{key}={quote_plus(value)}")
-
-    query_string = "&".join(raw_params)
+    # 2. Формируем query string (как делает PHP http_build_query)
+    # Используем urlencode, который корректно кодирует и ключи (скобки), и значения.
+    query_string = urlencode(ordered_params)
 
     # 3. Вычисляем HMAC-SHA256 подпись
     signature = hmac.new(
