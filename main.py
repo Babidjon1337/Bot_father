@@ -13,7 +13,7 @@ import uvicorn
 
 from handlers.main_bot import main_bot_router
 from handlers.user_bot import user_bot_router
-from database.requests import bot_rq, user_rq
+from database.requests import *
 from database.models import init_models
 from services.security import crypto
 from services.scheduler import start_scheduler, stop_scheduler
@@ -106,7 +106,7 @@ async def client_bots_webhook(bot_db_id: int, request: Request):
     if request.headers.get("X-Telegram-Bot-Api-Secret-Token") != SECRET_KEY:
         raise HTTPException(status_code=403, detail="Invalid secret token")
 
-    bot_config = await bot_rq.get_bot_by_id(bot_db_id)
+    bot_config = await get_bot_by_id(bot_db_id)
     if not bot_config:
         raise HTTPException(status_code=404, detail="Bot not found")
 
@@ -138,26 +138,22 @@ async def test_set_webhook(bot_token: str, request: Request):
     """
     try:
         temp_bot = Bot(
-            token=bot_token, 
+            token=bot_token,
             session=request.app.state.session,
-            default=DefaultBotProperties(parse_mode="HTML")
+            default=DefaultBotProperties(parse_mode="HTML"),
         )
-        
+
         # Для теста привязываем к bot_id = 1
         target_url = f"{WEBHOOK_URL}/webhook/bots/1"
-        
+
         await temp_bot.set_webhook(
-            url=target_url,
-            secret_token=SECRET_KEY,
-            drop_pending_updates=True
+            url=target_url, secret_token=SECRET_KEY, drop_pending_updates=True
         )
-        
-        logger.info(f"Тестовая перепривязка вебхука для токена ...{bot_token[-5:]} выполнена.")
-        return {
-            "status": "ok", 
-            "message": "Webhook updated!", 
-            "new_url": target_url
-        }
+
+        logger.info(
+            f"Тестовая перепривязка вебхука для токена ...{bot_token[-5:]} выполнена."
+        )
+        return {"status": "ok", "message": "Webhook updated!", "new_url": target_url}
     except Exception as e:
         logger.error(f"Ошибка в тестовом эндпоинте set_webhook: {e}")
         return JSONResponse(status_code=400, content={"detail": str(e)})
@@ -199,9 +195,7 @@ async def universal_payment_webhook(provider: str, tg_bot_id: int, request: Requ
             )
 
             # Обновляем статус в БД (все запросы через user_rq)
-            await user_rq.mark_lead_as_successful(
-                tg_bot_id=tg_bot_id, telegram_id=telegram_id
-            )
+            await mark_lead_as_successful(tg_bot_id=tg_bot_id, telegram_id=telegram_id)
 
             # Отправляем сообщение об успехе через сервис
             await send_success_message(

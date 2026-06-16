@@ -15,6 +15,7 @@ from loggers import logger
 # Глобальный клиент для всех запросов
 http_client = httpx.AsyncClient(timeout=10.0, follow_redirects=True)
 
+
 async def generate_payment_link(
     bot_config: BotConfig, amount: float, description: str, lead_telegram_id: int
 ) -> Optional[str]:
@@ -162,35 +163,39 @@ async def _create_prodamus_link(
     def _flatten(prefix, value):
         items = []
         if isinstance(value, dict):
-            for k, v in value.items(): items.extend(_flatten(f"{prefix}[{k}]", v))
+            for k, v in value.items():
+                items.extend(_flatten(f"{prefix}[{k}]", v))
         elif isinstance(value, list):
-            for i, v in enumerate(value): items.extend(_flatten(f"{prefix}[{i}]", v))
+            for i, v in enumerate(value):
+                items.extend(_flatten(f"{prefix}[{i}]", v))
         else:
             items.append((prefix, str(value)))
         return items
 
     flat_params = []
     for k, v in data.items():
-        if isinstance(v, (dict, list)): flat_params.extend(_flatten(k, v))
-        else: flat_params.append((k, v))
+        if isinstance(v, (dict, list)):
+            flat_params.extend(_flatten(k, v))
+        else:
+            flat_params.append((k, v))
 
     try:
         response = await http_client.get(payment_page, params=flat_params)
         if response.status_code == 200:
             content = response.text.strip()
-            found = re.findall(r'https?://payform\.ru/[a-zA-Z0-9]+/?', content)
+            found = re.findall(r"https?://payform\.ru/[a-zA-Z0-9]+/?", content)
             if found:
                 return found[0]
-        logger.error(f"Prodamus API error {response.status_code}: {response.text[:100]}")
+        logger.error(
+            f"Prodamus API error {response.status_code}: {response.text[:100]}"
+        )
     except Exception as e:
         logger.error(f"Ошибка при получении ссылки Prodamus: {e}")
-    
+
     return None
 
 
-async def send_success_message(
-    tg_bot_id: int, telegram_id: int, http_session: Any
-):
+async def send_success_message(tg_bot_id: int, telegram_id: int, http_session: Any):
     """
     Вспомогательная функция: достает настройки бота и отправляет node_success.
     Вынесено в сервис для чистоты main.py.
@@ -199,6 +204,7 @@ async def send_success_message(
     from schemas.funnel import FunnelSchema
     from services.funnel_message import send_funnel_node_message
     from aiogram import Bot
+
     from aiogram.client.default import DefaultBotProperties
 
     bot_config = await get_bot_by_tg_id(tg_bot_id)
