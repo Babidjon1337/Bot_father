@@ -9,6 +9,10 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  server: {
+    allowedHosts: true, // Разрешаем любые хосты (для ngrok)
+    host: true,         // Слушать на всех интерфейсах
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
