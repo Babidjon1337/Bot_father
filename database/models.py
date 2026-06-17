@@ -100,6 +100,7 @@ class Lead(Base):
 
     # Состояние в воронке
     current_step_id: Mapped[str] = mapped_column(String(255), default="node_start")
+    agreed_to_tos: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Метрика для аналитики (вместо отдельной таблицы Payment)
     has_purchased: Mapped[bool] = mapped_column(Boolean, default=False, index=True)

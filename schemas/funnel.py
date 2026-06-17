@@ -36,8 +36,9 @@ class NodeConfig(BaseModel):
 
 
 class GlobalSettings(BaseModel):
-    legal_offer_url: str
-    legal_privacy_url: str
+    legal_offer_url: Optional[str] = None
+    legal_privacy_url: Optional[str] = None
+    agreement_text: str = "Для продолжения работы с ботом, пожалуйста, ознакомьтесь и подтвердите согласие с юридическими документами."
     payment_amount: float
 
 

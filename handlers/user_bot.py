@@ -24,29 +24,94 @@ user_bot_router.message.filter(F.bot.id != MAIN_BOT_TG_ID)
 async def start_command_handler(message: Message):
     tg_bot_id = message.bot.id
     lead_id = message.from_user.id
+    
+    bot_config = await get_bot_by_tg_id(tg_bot_id)
     funnel = await get_funnel_by_bot_id(tg_bot_id)
 
     # ⚡️ ПРОВЕРКА:
-    if not funnel:
+    if not funnel or not bot_config:
         logger.info(f"Воронка для бота {tg_bot_id} не найдена в БД!")
         return
 
+    from database.requests.user_rq import get_lead
+    lead = await get_lead(bot_config.id, lead_id)
+
+    # Логика наличия ссылок
+    offer_url = funnel.global_settings.legal_offer_url
+    privacy_url = funnel.global_settings.legal_privacy_url
+    has_any_url = bool(offer_url or privacy_url)
+
+    # ПРОВЕРКА СОГЛАСИЯ:
+    if (lead and lead.agreed_to_tos) or not has_any_url:
+        # Если уже согласился ИЛИ ссылок нет совсем -> ведем сразу в воронку
+        if not lead:
+             await create_lead(tg_bot_id, lead_id, agreed=True)
+
+        node_start = funnel.nodes.get("node_start")
+        text_to_send = node_start.content.text
+        button_text = node_start.button.text if node_start.button else "💳 Оплатить доступ"
+        has_button = bool(node_start.button)
+
+        await message.answer(
+            text_to_send,
+            reply_markup=user_payment_button(button_text) if has_button else None,
+        )
+    else:
+        # Если новый или еще не согласился ПРИ НАЛИЧИИ ссылок
+        await create_lead(tg_bot_id, lead_id, agreed=False)
+        
+        # Строим сообщение: текст \n ссылки
+        links = []
+        if offer_url:
+            links.append(f"<a href='{offer_url}'>публичной офертой</a>")
+        if privacy_url:
+            links.append(f"<a href='{privacy_url}'>политикой конфиденциальности</a>")
+            
+        agreement_text = funnel.global_settings.agreement_text
+        if links:
+            agreement_text += "\n\n" + " и ".join(links)
+        
+        await message.answer(
+            agreement_text,
+            reply_markup=user_agreement_keyboard(),
+            disable_web_page_preview=True
+        )
+
+
+@user_bot_router.callback_query(F.data == "agree_tos")
+async def process_agreement(callback: CallbackQuery):
+    try:
+        await callback.answer("Принято!")
+    except TelegramBadRequest:
+        pass
+    
+    tg_bot_id = callback.bot.id
+    lead_id = callback.from_user.id
+    
+    # 1. Записываем согласие в БД и запускаем первый таймер дожима
+    await update_lead_agreement(tg_bot_id, lead_id)
+    
+    # 2. Переходим к первому шагу воронки (node_start)
+    funnel = await get_funnel_by_bot_id(tg_bot_id)
+    if not funnel:
+        return
+        
     node_start = funnel.nodes.get("node_start")
     text_to_send = node_start.content.text
+    button_text = node_start.button.text if node_start.button else "💳 Оплатить доступ"
+    has_button = bool(node_start.button)
 
-    # Берем текст из базы, либо ставим дефолтный
-    button_text = "💳 Оплатить доступ"
-    has_button = False
-    if node_start.button:
-        button_text = node_start.button.text
-        has_button = True
-
-    await create_lead(tg_bot_id, lead_id)
-
-    await message.answer(
-        text_to_send,
-        reply_markup=user_payment_button(button_text) if has_button else None,
-    )
+    try:
+        await callback.message.edit_text(
+            text=text_to_send,
+            reply_markup=user_payment_button(button_text) if has_button else None,
+        )
+    except TelegramBadRequest:
+        # На случай если сообщение нельзя отредактировать
+        await callback.message.answer(
+            text=text_to_send,
+            reply_markup=user_payment_button(button_text) if has_button else None,
+        )
 
 
 @user_bot_router.callback_query(F.data == "payment")

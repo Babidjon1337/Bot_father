@@ -34,7 +34,7 @@ async def get_funnel_by_bot_id(tg_bot_id: int):
         return funnel
 
 
-async def create_lead(tg_bot_id: int, telegram_id: int):
+async def create_lead(tg_bot_id: int, telegram_id: int, agreed: bool = False):
     async with async_session() as session:
         bot = await session.scalar(
             select(BotConfig).where(BotConfig.tg_bot_id == tg_bot_id)
@@ -50,29 +50,50 @@ async def create_lead(tg_bot_id: int, telegram_id: int):
         )
 
         # 3. ЗАЩИТА: Если лид уже есть, мы просто возвращаем его.
-        # Напоминалки не пересоздаются, таймеры не сбрасываются! Воронка идет своим чередом.
         if existing_lead:
-            logger.info(
-                f"Лид {telegram_id} уже в воронке (шаг {existing_lead.current_step_id}). Игнорируем сброс."
-            )
             return existing_lead
 
         # 4. Если лида нет — создаем новую запись
         new_lead = Lead(
             bot_id=bot.id,
             telegram_id=telegram_id,
+            agreed_to_tos=agreed,
+            current_step_id="node_start" if agreed else "awaiting_agreement"
         )
 
         session.add(new_lead)
         await session.flush()
 
         await session.commit()
-        logger.info(f"🔥 Создан новый лид {telegram_id} для бота {bot.id}")
+        logger.info(f"🔥 Создан новый лид {telegram_id} для бота {bot.id} (Согласие: {agreed})")
 
-        # ⚡️ Лид только что получил "node_start". Передаем это в функцию!
-        await create_reminder(bot.id, new_lead.id, step_just_sent="node_start")
+        # ⚡️ Если лид сразу согласился (или мы не требуем согласия), запускаем таймер
+        if agreed:
+            await create_reminder(bot.id, new_lead.id, step_just_sent="node_start")
 
         return new_lead
+
+
+async def update_lead_agreement(tg_bot_id: int, telegram_id: int, agreed: bool = True):
+    """Обновляет статус согласия лида и запускает первый таймер воронки."""
+    async with async_session() as session:
+        bot = await session.scalar(
+            select(BotConfig).where(BotConfig.tg_bot_id == tg_bot_id)
+        )
+        if not bot:
+            return
+
+        lead = await session.scalar(
+            select(Lead).where(Lead.bot_id == bot.id, Lead.telegram_id == telegram_id)
+        )
+
+        if lead and not lead.agreed_to_tos and agreed:
+            lead.agreed_to_tos = True
+            await session.commit()
+            logger.info(f"✅ Лид {telegram_id} подтвердил согласие с офертой.")
+            
+            # После согласия запускаем первый таймер
+            await create_reminder(bot.id, lead.id, step_just_sent="node_start")
 
 
 # ==============================

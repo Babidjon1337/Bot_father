@@ -12,3 +12,16 @@ def user_payment_button(text: str = "💳 Оплатить доступ"):
             ]
         ]
     )
+
+
+def user_agreement_keyboard():
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="✅ Я согласен с офертой",
+                    callback_data="agree_tos",
+                )
+            ]
+        ]
+    )
