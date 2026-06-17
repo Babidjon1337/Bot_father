@@ -24,7 +24,7 @@ user_bot_router.message.filter(F.bot.id != MAIN_BOT_TG_ID)
 async def start_command_handler(message: Message):
     tg_bot_id = message.bot.id
     lead_id = message.from_user.id
-    
+
     bot_config = await get_bot_by_tg_id(tg_bot_id)
     funnel = await get_funnel_by_bot_id(tg_bot_id)
 
@@ -34,6 +34,7 @@ async def start_command_handler(message: Message):
         return
 
     from database.requests.user_rq import get_lead
+
     lead = await get_lead(bot_config.id, lead_id)
 
     # Логика наличия ссылок
@@ -45,11 +46,13 @@ async def start_command_handler(message: Message):
     if (lead and lead.agreed_to_tos) or not has_any_url:
         # Если уже согласился ИЛИ ссылок нет совсем -> ведем сразу в воронку
         if not lead:
-             await create_lead(tg_bot_id, lead_id, agreed=True)
+            await create_lead(tg_bot_id, lead_id, agreed=True)
 
         node_start = funnel.nodes.get("node_start")
         text_to_send = node_start.content.text
-        button_text = node_start.button.text if node_start.button else "💳 Оплатить доступ"
+        button_text = (
+            node_start.button.text if node_start.button else "💳 Оплатить доступ"
+        )
         has_button = bool(node_start.button)
 
         await message.answer(
@@ -59,22 +62,22 @@ async def start_command_handler(message: Message):
     else:
         # Если новый или еще не согласился ПРИ НАЛИЧИИ ссылок
         await create_lead(tg_bot_id, lead_id, agreed=False)
-        
+
         # Строим сообщение: текст \n ссылки
         links = []
         if offer_url:
             links.append(f"<a href='{offer_url}'>публичной офертой</a>")
         if privacy_url:
             links.append(f"<a href='{privacy_url}'>политикой конфиденциальности</a>")
-            
+
         agreement_text = funnel.global_settings.agreement_text
         if links:
-            agreement_text += "\n\n" + " и ".join(links)
-        
+            agreement_text += "\n\n" + "\n".join(links)
+
         await message.answer(
             agreement_text,
             reply_markup=user_agreement_keyboard(),
-            disable_web_page_preview=True
+            disable_web_page_preview=True,
         )
 
 
@@ -84,18 +87,18 @@ async def process_agreement(callback: CallbackQuery):
         await callback.answer("Принято!")
     except TelegramBadRequest:
         pass
-    
+
     tg_bot_id = callback.bot.id
     lead_id = callback.from_user.id
-    
+
     # 1. Записываем согласие в БД и запускаем первый таймер дожима
     await update_lead_agreement(tg_bot_id, lead_id)
-    
+
     # 2. Переходим к первому шагу воронки (node_start)
     funnel = await get_funnel_by_bot_id(tg_bot_id)
     if not funnel:
         return
-        
+
     node_start = funnel.nodes.get("node_start")
     text_to_send = node_start.content.text
     button_text = node_start.button.text if node_start.button else "💳 Оплатить доступ"
@@ -139,11 +142,12 @@ async def process_payment_button(callback: CallbackQuery):
     if lead and (lead.has_purchased or lead.current_step_id == "node_success"):
         try:
             await callback.message.edit_reply_markup(reply_markup=None)
-            await callback.message.answer("Оплата по этому заказу уже получена. Спасибо!")
+            await callback.message.answer(
+                "Оплата по этому заказу уже получена. Спасибо!"
+            )
         except TelegramBadRequest:
             pass
         return
-
 
     # 2. Убираем кнопку у ИСХОДНОГО сообщения (видео/текста)
     try:
