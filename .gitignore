@@ -1,55 +1,22 @@
 # Python
-__pycache__/
-*.py[cod]
-*.pyo
+backend/venv/
+backend/__pycache__/
+backend/*.pyc
+backend/.env
+__pycache__
 
-# Virtual env
-.venv/
-venv/
-env/
-
-# Environment variables
-.env
-.env.*
-
-# Logs
-*.log
-logs/
+# Node.js
+frontend/node_modules/
+frontend/dist/
+frontend/.env.local
+frontend/.env
 
 # Databases
-*.db
-*.sqlite
-*.sqlite3
-
-# IDE
-.vscode/
-.idea/
+database/data/
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Pytest
-.pytest_cache/
-
-# Mypy
-.mypy_cache/
-
-# Coverage
-.coverage
-htmlcov/
-
-# Alembic
-alembic/versions/*.py
-
-# Uploads
-uploads/
-
-# Temporary
-tmp/
-temp/
-
-test*
-
-# GEMINI
 GEMINI.md
+test*

@@ -10,7 +10,8 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ./backend/database/data:/var/lib/postgresql/data
 
-volumes:
-  postgres_data:
+# Удаляем именованный volume, так как перешли на локальную папку
+# volumes:
+#   postgres_data:
