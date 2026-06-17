@@ -1,7 +1,10 @@
 from dotenv import load_dotenv
 import os
+from pathlib import Path
 
-load_dotenv()
+# Указываем путь к .env в корне проекта (на уровень выше папки backend)
+root_dir = Path(__file__).resolve().parent.parent
+load_dotenv(dotenv_path=root_dir / ".env")
 
 MAIN_BOT_TOKEN = os.getenv("MAIN_BOT_TOKEN")
 
@@ -11,6 +14,9 @@ MAIN_BOT_TG_ID = int(os.getenv("MAIN_BOT_TG_ID", 0))
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 WEBHOOK_PORT = int(os.getenv("WEBHOOK_PORT", 8000))
 PROXY_URL = os.getenv("PROXY_URL")
+
+# Ссылка на Mini App Dashboard
+WEBAPP_URL = os.getenv("WEBAPP_URL")
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY")

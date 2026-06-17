@@ -1,5 +1,5 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
-import os
+from config import WEBAPP_URL
 
 def main_video_learning_button(text: str = "🎬 Смотреть видео-обучение"):
     return InlineKeyboardMarkup(
@@ -15,15 +15,12 @@ def main_video_learning_button(text: str = "🎬 Смотреть видео-о�
 
 
 def main_create_bot_button(text: str = "🚀 Открыть конструктор"):
-    # URL должен вести на задеплоенный React (например, Vercel) или ngrok для локальных тестов
-    webapp_url = os.getenv("WEBAPP_URL", "https://novaflow.app/dashboard")
-    
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
                     text=text,
-                    web_app=WebAppInfo(url=webapp_url),
+                    web_app=WebAppInfo(url=WEBAPP_URL),
                 )
             ]
         ]

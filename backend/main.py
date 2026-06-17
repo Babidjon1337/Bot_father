@@ -1,6 +1,7 @@
-from fastapi import FastAPI, Request, HTTPException, Depends
+from fastapi import FastAPI, Request, HTTPException, Depends, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.session.aiohttp import AiohttpSession
@@ -10,6 +11,8 @@ from aiogram.types import Update
 
 from contextlib import asynccontextmanager
 import uvicorn
+import os
+import shutil
 
 from handlers.main_bot import main_bot_router
 from handlers.user_bot import user_bot_router
@@ -26,12 +29,16 @@ from config import (
     SECRET_KEY,
 )
 from schemas.main_schemas import HealthCheckResponse, BotCreateResponse
+from schemas.funnel import FunnelSchema
 
 dp = Dispatcher()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Создаем папку для загрузок если её нет
+    os.makedirs("uploads", exist_ok=True)
+    
     # Регистрация роутеров
     if main_bot_router not in dp.sub_routers:
         dp.include_router(main_bot_router)
@@ -77,10 +84,69 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Монтируем папку со статикой для доступа к загруженным файлам
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
 
 @app.get("/", response_model=HealthCheckResponse)
 async def health_check():
     return {"status": "healthy"}
+
+
+# =====================================================================
+# ЭНДПОИНТЫ ДАШБОРДА (API для Mini App)
+# =====================================================================
+
+@app.get("/api/funnel/{bot_id}")
+async def get_funnel(bot_id: int):
+    """Возвращает текущую схему воронки для бота."""
+    bot_config = await get_bot_by_id(bot_id)
+    if not bot_config:
+        raise HTTPException(status_code=404, detail="Bot not found")
+    
+    return bot_config.funnel_schema or {"nodes": {}, "global_settings": {}}
+
+
+@app.post("/api/funnel/{bot_id}")
+async def save_funnel(bot_id: int, funnel: FunnelSchema):
+    """Сохраняет новую схему воронки."""
+    # Здесь должна быть логика обновления funnel_schema в БД через bot_rq
+    # Для прототипа просто логируем и возвращаем успех
+    logger.info(f"Сохранение воронки для бота {bot_id}")
+    return {"status": "ok", "message": "Funnel saved successfully"}
+
+
+@app.post("/api/upload")
+async def upload_file(file: UploadFile = File(...)):
+    """Загрузка медиа-файлов."""
+    file_extension = os.path.splitext(file.filename)[1]
+    unique_filename = f"{os.urandom(8).hex()}{file_extension}"
+    file_path = os.path.join("uploads", unique_filename)
+    
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    
+    # Возвращаем URL для доступа к файлу
+    file_url = f"{WEBHOOK_URL}/uploads/{unique_filename}"
+    return {"url": file_url, "filename": unique_filename}
+
+
+@app.get("/api/stats/{bot_id}")
+async def get_bot_stats(bot_id: int):
+    """Возвращает статистику воронки (имитация)."""
+    return {
+        "views": 5241,
+        "clicks": 1173,
+        "sales": 86,
+        "conversion": 1.6,
+        "revenue": 154820,
+        "funnel_data": [
+            {"name": "Старт", "value": 5241},
+            {"name": "Клик", "value": 1173},
+            {"name": "Дожим 1", "value": 408},
+            {"name": "Оплата", "value": 86},
+        ]
+    }
 
 
 # =====================================================================
