@@ -50,3 +50,6 @@ tmp/
 temp/
 
 test*
+
+# GEMINI
+GEMINI.md
