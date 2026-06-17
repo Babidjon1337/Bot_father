@@ -1,39 +1,31 @@
 @import "tailwindcss";
 
 @theme {
-  --color-tg-bg: var(--tg-theme-bg-color, #0e1116);
-  --color-tg-text: var(--tg-theme-text-color, #ecf1ff);
-  --color-tg-hint: var(--tg-theme-hint-color, #95a0b8);
-  --color-tg-link: var(--tg-theme-link-color, #2ea6ff);
-  --color-tg-primary: var(--tg-theme-button-color, #2ea6ff);
-  --color-tg-primary-text: var(--tg-theme-button-text-color, #ffffff);
-  --color-tg-secondary-bg: var(--tg-theme-secondary-bg-color, rgba(19, 24, 33, 0.85));
-
-  --color-background: var(--tg-theme-bg-color, #0e1116);
-  --color-foreground: var(--tg-theme-text-color, #ecf1ff);
+  --color-background: var(--tg-theme-bg-color, #0f1217);
+  --color-foreground: var(--tg-theme-text-color, #ffffff);
   
-  --color-card: rgba(19, 24, 33, 0.85);
-  --color-card-foreground: #ecf1ff;
+  --color-card: var(--tg-theme-secondary-bg-color, #181d25);
+  --color-card-foreground: var(--tg-theme-text-color, #ffffff);
   
-  --color-border: rgba(255, 255, 255, 0.08);
-  --color-input: rgba(255, 255, 255, 0.06);
+  --color-border: var(--tg-theme-hint-color, rgba(255, 255, 255, 0.08));
+  --color-input: rgba(255, 255, 255, 0.05);
   
   --color-primary: var(--tg-theme-button-color, #2ea6ff);
   --color-primary-foreground: var(--tg-theme-button-text-color, #ffffff);
   
-  --color-muted: rgba(255, 255, 255, 0.05);
-  --color-muted-foreground: #95a0b8;
+  --color-muted: var(--tg-theme-hint-color, rgba(255, 255, 255, 0.1));
+  --color-muted-foreground: var(--tg-theme-hint-color, #95a0b8);
 
-  --color-accent: rgba(46, 166, 255, 0.1);
-  --color-accent-foreground: #2ea6ff;
+  --color-accent: var(--tg-theme-button-color, #2ea6ff);
+  --color-accent-foreground: var(--tg-theme-button-text-color, #ffffff);
   
-  --color-success: #36d399;
-  --color-warning: #fbbf24;
-  --color-danger: #ff6b6b;
+  --color-success: #31d095;
+  --color-warning: #f7b500;
+  --color-danger: #ff5b5b;
 
-  --radius-lg: 24px;
-  --radius-md: 16px;
-  --radius-sm: 8px;
+  --radius-lg: 28px;
+  --radius-md: 20px;
+  --radius-sm: 12px;
 }
 
 @layer base {
@@ -41,12 +33,15 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground antialiased;
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    @apply bg-background text-foreground antialiased selection:bg-primary/30;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';
   }
 }
 
-/* Glassmorphism utilities */
+/* Glassmorphism utilities optimized for TG */
 .glass {
-  @apply bg-card backdrop-blur-xl border border-border shadow-xl;
+  background: var(--tg-theme-secondary-bg-color, #181d25);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
