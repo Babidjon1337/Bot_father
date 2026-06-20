@@ -1,69 +1,185 @@
-import { Zap, Monitor, Layout, GitBranch, BarChart3, Settings } from 'lucide-react';
+import { Home, Layers, User, GitBranch, ChevronDown } from 'lucide-react';
 import { cn } from '../utils';
-import type { TabType } from '../types';
+import type { TabType, AppState, SheetType } from '../types';
 
 interface SidebarProps {
   activeTab: TabType;
   setActiveTab: (tab: TabType) => void;
+  appState: AppState;
+  setSheet: (sheet: SheetType) => void;
 }
 
-const NAV_ITEMS = [
-  { id: 'overview' as const, icon: Monitor, label: 'Обзор', desc: 'Сводка и метрики' },
-  { id: 'builder' as const, icon: Layout, label: 'Конструктор', desc: 'Редактор блоков' },
-  { id: 'flow' as const, icon: GitBranch, label: 'Схема', desc: 'Логика воронки' },
-  { id: 'stats' as const, icon: BarChart3, label: 'Аналитика', desc: 'Прибыль и конверсия' },
-  { id: 'settings' as const, icon: Settings, label: 'Настройки', desc: 'Аккаунт и API' },
+const MAIN_NAV: { id: TabType; icon: React.FC<any>; label: string; activeColor: string }[] = [
+  { id: 'home',    icon: Home,      label: 'Статистика', activeColor: 'var(--color-primary)'  },
+  { id: 'build',   icon: Layers,    label: 'Воронка', activeColor: 'var(--color-accent)'  },
+  { id: 'profile', icon: User,      label: 'Профиль', activeColor: 'var(--color-success)'  },
 ];
 
-export const Sidebar = ({ activeTab, setActiveTab }: SidebarProps) => {
+export const Sidebar = ({ activeTab, setActiveTab, appState, setSheet }: SidebarProps) => {
+  const { activeBot, subscriptionStatus } = appState;
+  const isSubscribed = subscriptionStatus === 'active';
+
   return (
-    <aside className="hidden lg:flex w-80 border-r border-white/5 bg-background flex-col p-8 gap-10">
-      <div className="flex items-center gap-4 px-2">
-        <div className="w-12 h-12 bg-gradient-to-br from-primary to-purple-600 rounded-2xl flex items-center justify-center shadow-2xl shadow-primary/20">
-          <Zap size={24} color="white" fill="white" />
-        </div>
-        <h2 className="font-black text-2xl tracking-tighter text-foreground">Bot Father</h2>
+    <aside
+      className="hidden lg:flex flex-col w-[240px] shrink-0 h-screen fixed top-0 left-0"
+      style={{
+        background: 'var(--color-sidebar)',
+        borderRight: '1px solid var(--color-border)',
+      }}
+    >
+      {/* Logo */}
+      <div 
+        className="px-5 flex justify-center items-center shrink-0" 
+        style={{ 
+          height: '74px', 
+          borderBottom: '1px solid var(--color-border)',
+          background: 'var(--color-sidebar)'
+        }}
+      >
+        <span
+          style={{
+            fontSize: '20px',
+            fontWeight: 700,
+            color: 'var(--color-foreground)',
+            letterSpacing: '-0.02em',
+          }}
+        >
+          Bot Father
+        </span>
       </div>
 
-      <nav className="flex flex-col gap-3 flex-1">
-        {NAV_ITEMS.map((item) => (
+      {/* Bot switcher — only if bot connected */}
+      {activeBot && (
+        <div className="px-3 pt-4">
           <button
-            key={item.id}
-            onClick={() => setActiveTab(item.id)}
+            onClick={() => setSheet('bot_switcher')}
             className={cn(
-              "flex items-center gap-5 p-4 rounded-[24px] transition-all duration-300 group text-left",
-              activeTab === item.id 
-                ? "bg-primary text-white shadow-2xl shadow-primary/20 scale-[1.02]" 
-                : "hover:bg-white/5 text-muted-foreground hover:text-foreground"
+              "w-full flex items-center gap-3 px-2 py-2 rounded-[var(--radius-sm)] text-left",
+              "hover:bg-[var(--color-surface-2)] transition-colors"
             )}
           >
-            <div className={cn(
-              "w-12 h-12 rounded-2xl flex items-center justify-center transition-colors shadow-inner",
-              activeTab === item.id ? "bg-white/20" : "bg-white/5 group-hover:bg-white/10"
-            )}>
-              <item.icon size={22} strokeWidth={activeTab === item.id ? 2.5 : 2} />
+            <div
+              className="w-7 h-7 rounded-md flex items-center justify-center text-white shrink-0"
+              style={{
+                background: 'var(--color-primary)',
+                fontSize: '11px',
+                fontWeight: 600,
+              }}
+            >
+              {activeBot.name.substring(0, 2).toUpperCase()}
             </div>
-            <div>
-              <div className="font-black text-sm tracking-tight">{item.label}</div>
-              <div className={cn("text-[10px] font-bold uppercase tracking-widest mt-0.5", activeTab === item.id ? "text-white/60" : "text-muted-foreground/50")}>{item.desc}</div>
+            <div className="flex-1 min-w-0">
+              <div
+                className="truncate"
+                style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-foreground)' }}
+              >
+                {activeBot.name}
+              </div>
+              <div
+                className="truncate flex items-center gap-1"
+                style={{ fontSize: '11px', color: 'var(--color-foreground-tertiary)' }}
+              >
+                <span
+                  className="status-dot"
+                  style={{
+                    background: activeBot.status === 'active'
+                      ? 'var(--color-success)'
+                      : 'var(--color-foreground-tertiary)',
+                    width: '5px',
+                    height: '5px',
+                  }}
+                />
+                {activeBot.status === 'active' ? 'Активен' : 'Черновик'}
+              </div>
             </div>
-          </button>
-        ))}
-      </nav>
-
-      <div className="bg-card p-6 rounded-[32px] border border-white/5 relative overflow-hidden group">
-        <div className="relative z-10">
-          <div className="text-[11px] font-black text-primary mb-2 uppercase tracking-[0.2em]">PRO ПЛАН</div>
-          <div className="text-xs text-muted-foreground leading-relaxed mb-6 font-medium">
-            Обновляется 24 июля 2026. <br/>Все функции разблокированы.
-          </div>
-          <button className="w-full bg-primary/10 text-primary font-black py-3 rounded-2xl text-xs hover:bg-primary hover:text-white transition-all shadow-lg active:scale-95">
-            Опубликовать
+            <ChevronDown size={14} style={{ color: 'var(--color-foreground-tertiary)', flexShrink: 0 }} />
           </button>
         </div>
-        <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full blur-3xl -mr-12 -mt-12 group-hover:bg-primary/10 transition-colors" />
+      )}
+
+      {/* Navigation */}
+      <nav className="flex-1 px-3 pt-3 pb-4 flex flex-col gap-0.5">
+        <div className="nav-label mb-2">Навигация</div>
+
+        {MAIN_NAV.map((item) => {
+          const isActive = activeTab === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => setActiveTab(item.id)}
+              className={cn('nav-item', isActive && 'active')}
+              style={{
+                color: isActive ? 'var(--color-foreground)' : 'var(--color-foreground-secondary)',
+                background: isActive ? 'var(--color-surface-2)' : 'transparent',
+              }}
+            >
+              <div
+                data-tour={item.id === 'home' ? 'tour-nav-stats' : item.id === 'profile' ? 'tour-nav-profile' : item.id === 'build' ? 'tour-funnel-tab' : undefined}
+                style={{ display: 'flex', alignItems: 'center', gap: '12px' }}
+              >
+                <item.icon
+                  size={18}
+                  strokeWidth={isActive ? 2 : 1.75}
+                  style={{
+                    flexShrink: 0,
+                    color: item.activeColor,
+                    transform: isActive ? 'scale(1.15)' : 'scale(1)',
+                    transition: 'transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)'
+                  }}
+                />
+                {item.label}
+              </div>
+            </button>
+          );
+        })}
+
+        {/* Desktop-only: Flow map */}
+        <div className="divider" style={{ margin: '12px 0' }} />
+        <div className="nav-label mb-2" style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-foreground-tertiary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Инструменты</div>
+        <button
+          onClick={() => setActiveTab('flow')}
+          className={cn('nav-item', activeTab === 'flow' && 'active')}
+          style={{
+            color: activeTab === 'flow' ? 'var(--color-foreground)' : 'var(--color-foreground-secondary)',
+            background: activeTab === 'flow' ? 'var(--color-surface-2)' : 'transparent',
+          }}
+        >
+          <GitBranch
+            size={18}
+            strokeWidth={activeTab === 'flow' ? 2 : 1.75}
+            style={{ 
+              flexShrink: 0, 
+              color: 'var(--color-warning)',
+              transform: activeTab === 'flow' ? 'scale(1.15)' : 'scale(1)',
+              transition: 'transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)'
+            }}
+          />
+          Схема логики
+        </button>
+      </nav>
+
+      {/* Subscription status at bottom */}
+      <div
+        className="px-4 py-4"
+        style={{ borderTop: '1px solid var(--color-border)' }}
+      >
+        {isSubscribed ? (
+          <div className="flex items-center gap-2">
+            <span className="status-dot status-dot-success" />
+            <span style={{ fontSize: '12px', color: 'var(--color-foreground-secondary)' }}>
+              PRO · до 24 июля
+            </span>
+          </div>
+        ) : (
+          <button
+            onClick={() => setSheet(subscriptionStatus === 'expired' ? 'billing_renew' : 'billing_first')}
+            className="btn btn-primary w-full"
+            style={{ height: '36px', fontSize: '13px' }}
+          >
+            {subscriptionStatus === 'expired' ? 'Продлить подписку' : 'Перейти на PRO'}
+          </button>
+        )}
       </div>
     </aside>
   );
 };
-

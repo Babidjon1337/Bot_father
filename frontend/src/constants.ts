@@ -1,4 +1,4 @@
-import type { FunnelNode } from './types';
+import type { FunnelNode, PaymentProvider } from './types';
 
 export const INITIAL_BLOCKS: FunnelNode[] = [
   {
@@ -10,7 +10,7 @@ export const INITIAL_BLOCKS: FunnelNode[] = [
     content: 'Привет! Посмотри это видео...',
     buttonText: '🚀 Начать',
     x: 250,
-    y: 50
+    y: 50,
   },
   {
     id: 'push1',
@@ -21,7 +21,7 @@ export const INITIAL_BLOCKS: FunnelNode[] = [
     content: 'Вы забыли забрать бонус!',
     buttonText: '🎁 Забрать',
     x: 250,
-    y: 200
+    y: 200,
   },
   {
     id: 'push2',
@@ -32,7 +32,7 @@ export const INITIAL_BLOCKS: FunnelNode[] = [
     content: 'Последний шанс на скидку!',
     buttonText: '🔥 Скидка',
     x: 250,
-    y: 350
+    y: 350,
   },
   {
     id: 'payment',
@@ -43,7 +43,7 @@ export const INITIAL_BLOCKS: FunnelNode[] = [
     content: 'Ваш счет на оплату готов.',
     buttonText: '💳 Оплатить',
     x: 500,
-    y: 200
+    y: 200,
   },
   {
     id: 'delivery',
@@ -54,6 +54,24 @@ export const INITIAL_BLOCKS: FunnelNode[] = [
     content: 'Спасибо за покупку! Вот доступ.',
     buttonText: '📂 Открыть',
     x: 500,
-    y: 400
-  }
+    y: 400,
+  },
 ];
+
+export const TIMER_PRESETS: string[] = ['1ч', '6ч', '12ч', '24ч', '48ч'];
+
+export const PAYMENT_PROVIDERS: Record<PaymentProvider, { key: string; label: string; hint: string }[]> = {
+  yookassa: [
+    { key: 'shop_id',    label: 'Shop ID',     hint: '123456' },
+    { key: 'secret_key', label: 'Секретный ключ', hint: 'test_xxxxxx' },
+  ],
+  robokassa: [
+    { key: 'merchant_login',  label: 'Merchant Login', hint: 'my_shop' },
+    { key: 'password1',       label: 'Пароль 1',       hint: 'pass1' },
+    { key: 'password2',       label: 'Пароль 2',       hint: 'pass2' },
+  ],
+  prodamus: [
+    { key: 'api_key',   label: 'API Ключ',     hint: 'prodamus_xxxxx' },
+    { key: 'domain',    label: 'Домен',        hint: 'myshop.payform.ru' },
+  ],
+};

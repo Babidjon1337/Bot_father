@@ -1,146 +1,175 @@
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import ReactFlow, { Background, Controls, MiniMap, Handle, Position } from 'reactflow';
-import type { Node, Edge, NodeProps } from 'reactflow';
+import ReactFlow, { Background, Controls, Handle, Position } from 'reactflow';
+import type { Edge, NodeProps, Node } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { cn } from '../../utils';
+import { MessageCircle, Bell, CreditCard, FileBox, FileText } from 'lucide-react';
 import type { FunnelNode } from '../../types';
 
 interface FlowProps {
   blocks: FunnelNode[];
   setSelectedBlockId: (id: string) => void;
   updateBlock: (id: string, field: keyof FunnelNode, value: string) => void;
-  setActiveTab: (tab: 'builder') => void;
+  setActiveTab: (tab: string) => void;
+  theme: 'light' | 'dark';
 }
 
-// Custom Node Component to match the image style with editable delay
-const CustomNode = ({ data }: NodeProps) => {
-  return (
-    <div className="bg-[#141414] border border-white/10 rounded-2xl overflow-hidden min-w-[220px] shadow-2xl">
-      <div className="bg-white/5 px-4 py-2 border-b border-white/5 flex justify-between items-center">
-        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{data.type}</span>
-        <div className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_8px_var(--color-primary)]" />
-      </div>
-      <div className="p-4 space-y-3">
-        <div>
-          <div className="text-sm font-black text-foreground mb-1">{data.label}</div>
-          <div className="text-[10px] text-muted-foreground font-bold">{data.subtitle}</div>
-        </div>
+const BLOCK_COLORS = {
+  offer:    { bg: 'var(--color-surface-2)', border: 'var(--color-border-strong)', text: 'var(--color-foreground-secondary)', icon: FileText },
+  message:  { bg: 'var(--color-primary-soft)', border: 'var(--color-primary)', text: 'var(--color-primary)', icon: MessageCircle },
+  reminder: { bg: 'var(--color-warning-soft)', border: 'var(--color-warning)', text: 'var(--color-warning)', icon: Bell },
+  payment:  { bg: 'var(--color-accent-soft)', border: 'var(--color-accent)', text: 'var(--color-accent)', icon: CreditCard },
+  delivery: { bg: 'var(--color-success-soft)', border: 'var(--color-success)', text: 'var(--color-success)', icon: FileBox },
+};
 
-        {data.kind === 'reminder' && (
-          <div className="pt-2 border-t border-white/5">
-            <div className="text-[9px] font-black text-white/30 uppercase tracking-widest mb-2">Задержка отправки</div>
-            <div className="flex items-center gap-3 bg-white/5 p-2 rounded-xl border border-white/5">
-              <input 
-                type="text" 
-                value={data.delay} 
-                onChange={(e) => data.onUpdate('delay', e.target.value)}
-                className="bg-transparent border-none outline-none text-[11px] font-black text-primary w-full"
-              />
-              <div className="w-4 h-4 rounded-full bg-primary/20 flex items-center justify-center">
-                <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-              </div>
-            </div>
+const CustomNode = ({ data }: NodeProps) => {
+  const { title, subtitle, kind, content, buttonText } = data;
+  const colors = BLOCK_COLORS[kind as keyof typeof BLOCK_COLORS] || BLOCK_COLORS.message;
+  const Icon = colors.icon;
+
+  return (
+    <div
+      style={{
+        background: 'var(--color-surface)',
+        border: `2px solid ${colors.border}`,
+        borderRadius: '16px',
+        width: '280px',
+        boxShadow: 'var(--shadow-card)',
+        overflow: 'hidden',
+      }}
+    >
+      <div style={{ background: colors.bg, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '10px', borderBottom: `1px solid ${colors.border}` }}>
+        <Icon size={18} style={{ color: colors.text }} />
+        <div>
+          <div style={{ fontSize: '14px', fontWeight: 600, color: colors.text, lineHeight: 1.2 }}>{title}</div>
+          <div style={{ fontSize: '12px', color: colors.text, opacity: 0.8 }}>{subtitle}</div>
+        </div>
+      </div>
+      <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {content && (
+          <div style={{
+            background: 'var(--color-surface-2)',
+            padding: '10px 12px',
+            borderRadius: '12px',
+            fontSize: '13px',
+            color: 'var(--color-foreground)',
+            lineHeight: 1.5,
+            borderBottomLeftRadius: '4px',
+            maxWidth: '90%',
+          }}>
+            {content.length > 60 ? content.substring(0, 60) + '...' : content}
+          </div>
+        )}
+        {buttonText && (
+          <div style={{
+            background: 'var(--color-surface-2)',
+            border: '1px solid var(--color-border)',
+            padding: '8px',
+            borderRadius: '8px',
+            fontSize: '13px',
+            fontWeight: 500,
+            textAlign: 'center',
+            color: 'var(--color-primary)',
+          }}>
+            {buttonText}
+          </div>
+        )}
+        {!content && !buttonText && (
+          <div style={{ fontSize: '13px', color: '#94A3B8', fontStyle: 'italic' }}>
+            Нет контента
           </div>
         )}
       </div>
-      
-      <Handle type="target" position={Position.Top} className="!w-3 !h-3 !bg-[#141414] !border-2 !border-primary !-top-1.5" />
-      <Handle type="source" position={Position.Bottom} className="!w-3 !h-3 !bg-[#141414] !border-2 !border-primary !-bottom-1.5" />
-      <Handle type="source" position={Position.Right} id="right" className="!w-3 !h-3 !bg-[#141414] !border-2 !border-primary !-right-1.5" />
-      <Handle type="target" position={Position.Left} id="left" className="!w-3 !h-3 !bg-[#141414] !border-2 !border-primary !-left-1.5" />
+
+      <Handle type="target" position={Position.Top} id="top" style={{ background: colors.border, width: '10px', height: '10px' }} />
+      <Handle type="source" position={Position.Bottom} id="bottom" style={{ background: colors.border, width: '10px', height: '10px' }} />
+      <Handle type="source" position={Position.Right} id="right" style={{ background: colors.border, width: '10px', height: '10px' }} />
+      <Handle type="target" position={Position.Left} id="left" style={{ background: colors.border, width: '10px', height: '10px' }} />
     </div>
   );
 };
 
-const nodeTypes = {
-  funnel: CustomNode,
-};
+export const Flow = ({ blocks, setSelectedBlockId, setActiveTab, theme }: FlowProps) => {
+  const getBlock = (id: string) => blocks.find(b => b.id === id);
 
-export const Flow = ({ blocks, setSelectedBlockId, updateBlock }: FlowProps) => {
-  const flowNodes: Node[] = useMemo(() => blocks.map(block => ({
-    id: block.id,
-    type: 'funnel',
-    data: { 
-      label: block.step, 
-      subtitle: block.subtitle,
-      kind: block.kind,
-      delay: block.delay,
-      onUpdate: (field: keyof FunnelNode, value: string) => updateBlock(block.id, field, value),
-      type: block.kind === 'reminder' ? 'Дожим' : block.kind === 'delivery' ? 'Выдача' : 'Сообщение'
+  const nodeTypes = useMemo(() => ({
+    custom: CustomNode,
+  }), []);
+
+  const flowNodes: Node[] = useMemo(() => [
+    {
+      id: 'offer',
+      type: 'custom',
+      position: { x: 250, y: 50 },
+      data: { title: 'Оферта', subtitle: 'Шаг 0', kind: 'offer', content: 'Ссылка на договор оферты' },
     },
-    position: { x: block.x, y: block.y },
-  })), [blocks, updateBlock]);
+    {
+      id: 'start',
+      type: 'custom',
+      position: { x: 250, y: 250 },
+      data: { title: 'Первое сообщение', subtitle: 'Мгновенно', kind: 'message', content: getBlock('start')?.content, buttonText: getBlock('start')?.buttonText },
+    },
+    {
+      id: 'push1',
+      type: 'custom',
+      position: { x: 250, y: 480 },
+      data: { title: 'Дожим 1', subtitle: getBlock('push1')?.delay || '1 час', kind: 'reminder', content: getBlock('push1')?.content, buttonText: getBlock('push1')?.buttonText },
+    },
+    {
+      id: 'push2',
+      type: 'custom',
+      position: { x: 250, y: 710 },
+      data: { title: 'Дожим 2', subtitle: getBlock('push2')?.delay || '24 часа', kind: 'reminder', content: getBlock('push2')?.content, buttonText: getBlock('push2')?.buttonText },
+    },
+    {
+      id: 'payment',
+      type: 'custom',
+      position: { x: 650, y: 250 },
+      data: { title: 'Оплата', subtitle: 'Мгновенно', kind: 'payment', content: 'Счет на оплату сформирован.', buttonText: 'Оплатить' },
+    },
+    {
+      id: 'delivery',
+      type: 'custom',
+      position: { x: 650, y: 480 },
+      data: { title: 'Выдача', subtitle: 'После оплаты', kind: 'delivery', content: getBlock('delivery')?.content },
+    },
+  ], [blocks]);
 
   const flowEdges: Edge[] = useMemo(() => [
-    // Main Vertical flow
-    { 
-      id: 'e-start-push1', 
-      source: 'start', 
-      target: 'push1', 
-      animated: true, 
-      style: { stroke: 'rgba(255,255,255,0.2)', strokeWidth: 2, strokeDasharray: '6,6' } 
-    },
-    { 
-      id: 'e-push1-push2', 
-      source: 'push1', 
-      target: 'push2', 
-      animated: true, 
-      style: { stroke: 'rgba(255,255,255,0.2)', strokeWidth: 2, strokeDasharray: '6,6' } 
-    },
-    // Payment path
-    { 
-      id: 'e-start-payment', 
-      source: 'start', 
-      sourceHandle: 'right',
-      target: 'payment', 
-      targetHandle: 'left',
-      label: 'оплата',
-      labelStyle: { fill: '#fff', fontSize: 10, fontWeight: 900 },
-      labelBgStyle: { fill: 'var(--color-primary)', rx: 8, fillOpacity: 0.9 },
-      style: { stroke: 'var(--color-primary)', strokeWidth: 2, strokeDasharray: '6,6' } 
-    },
-    { 
-      id: 'e-payment-delivery', 
-      source: 'payment', 
-      target: 'delivery', 
-      style: { stroke: '#31d095', strokeWidth: 2, strokeDasharray: '6,6' } 
-    },
+    { id: 'e-offer-start', source: 'offer', sourceHandle: 'bottom', target: 'start', targetHandle: 'top', type: 'smoothstep', style: { stroke: '#94A3B8', strokeWidth: 2 } },
+    { id: 'e-start-push1', source: 'start', sourceHandle: 'bottom', target: 'push1', targetHandle: 'top', type: 'smoothstep', animated: true, style: { stroke: '#CBD5E1', strokeWidth: 2 } },
+    { id: 'e-push1-push2', source: 'push1', sourceHandle: 'bottom', target: 'push2', targetHandle: 'top', type: 'smoothstep', animated: true, style: { stroke: '#CBD5E1', strokeWidth: 2 } },
+    { id: 'e-start-payment', source: 'start', sourceHandle: 'right', target: 'payment', targetHandle: 'left', type: 'smoothstep', style: { stroke: '#3B82F6', strokeWidth: 2 } },
+    { id: 'e-push1-payment', source: 'push1', sourceHandle: 'right', target: 'payment', targetHandle: 'left', type: 'smoothstep', style: { stroke: '#F59E0B', strokeWidth: 2 } },
+    { id: 'e-push2-payment', source: 'push2', sourceHandle: 'right', target: 'payment', targetHandle: 'left', type: 'smoothstep', style: { stroke: '#F59E0B', strokeWidth: 2 } },
+    { id: 'e-payment-delivery', source: 'payment', sourceHandle: 'bottom', target: 'delivery', targetHandle: 'top', type: 'smoothstep', style: { stroke: '#A855F7', strokeWidth: 2 } },
   ], []);
 
   return (
-    <motion.div 
-      key="flow" 
-      initial={{ opacity: 0, scale: 0.98 }} 
-      animate={{ opacity: 1, scale: 1 }} 
-      className="h-full min-h-[75vh] bg-[#0a0a0a] rounded-[48px] relative overflow-hidden border border-white/5"
+    <motion.div
+      key="flow"
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="flex-1 w-full"
+      style={{
+        background: 'var(--color-surface-2)',
+      }}
     >
-      <ReactFlow 
-        nodes={flowNodes} 
-        edges={flowEdges} 
+      <ReactFlow
+        nodes={flowNodes}
+        edges={flowEdges}
         nodeTypes={nodeTypes}
         fitView
         onNodeClick={(_, node) => {
           const tg = (window as any).Telegram?.WebApp;
           if (tg) tg.HapticFeedback.impactOccurred('light');
-          setSelectedBlockId(node.id);
+          setSelectedBlockId(node.id === 'delivery' ? 'after_payment' : node.id);
+          setActiveTab('build');
         }}
       >
-        <Background color="#222" gap={24} size={1} />
-        <Controls className="bg-[#141414] border-white/10 fill-white" />
-        <MiniMap 
-          nodeColor="#222" 
-          maskColor="rgba(0,0,0,0.8)"
-          className="bg-[#141414] border-white/10 rounded-3xl" 
-        />
+        <Background color={theme === 'dark' ? '#38383A' : '#CBD5E1'} gap={16} />
+        <Controls style={{ display: 'flex', flexDirection: 'column', gap: '5px' }} />
       </ReactFlow>
-      
-      <div className="absolute top-8 left-8 flex flex-col gap-2 pointer-events-none">
-         <div className="bg-[#141414] border border-white/5 px-5 py-2.5 rounded-2xl flex items-center gap-3">
-            <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-            <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white/70">Логика конструктора</span>
-         </div>
-      </div>
     </motion.div>
   );
 };
