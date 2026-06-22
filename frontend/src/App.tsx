@@ -9,9 +9,10 @@ import { Home } from './components/tabs/Home';
 import { Build } from './components/tabs/Build';
 import { Flow } from './components/tabs/Flow';
 import { Profile } from './components/tabs/Profile';
+import { Subscription } from './components/tabs/Subscription';
 
-import { BillingFirstTime } from './components/sheets/BillingFirstTime';
 import { BillingRenew } from './components/sheets/BillingRenew';
+import { CheckoutSheet } from './components/sheets/CheckoutSheet';
 import { BotSwitcher } from './components/sheets/BotSwitcher';
 import { BotSettings } from './components/sheets/BotSettings';
 import { Toast } from './components/Toast';
@@ -75,8 +76,8 @@ export default function App() {
     }
   }, [theme]);
 
-  const setSheet = (sheet: SheetType) =>
-    setAppState(prev => ({ ...prev, activeSheet: sheet }));
+  const setSheet = (sheet: SheetType, data?: any) =>
+    setAppState(prev => ({ ...prev, activeSheet: sheet, sheetData: data }));
 
   const toggleTheme = () => {
     setTheme(prev => prev === 'light' ? 'dark' : 'light');
@@ -100,6 +101,8 @@ export default function App() {
         setActiveTab={setActiveTab}
         appState={appState}
         setSheet={setSheet}
+        theme={theme}
+        toggleTheme={toggleTheme}
       />
 
       <main
@@ -119,8 +122,8 @@ export default function App() {
           `}</style>
 
           <div 
-            className={`flex-1 flex flex-col ${activeTab === 'flow' ? 'flow-padding' : 'p-4 lg:p-8 mobile-padding'}`} 
-            style={{ maxWidth: activeTab === 'flow' ? '100%' : '960px', margin: '0 auto', width: '100%' }}
+            className={`flex-1 flex flex-col ${activeTab === 'flow' ? 'flow-padding' : activeTab === 'subscription' ? 'px-2 lg:px-4 py-4 lg:py-8 mobile-padding' : 'p-4 lg:p-8 mobile-padding'}`} 
+            style={{ maxWidth: activeTab === 'flow' ? '100%' : activeTab === 'subscription' ? '1100px' : '960px', margin: '0 auto', width: '100%' }}
           >
           <AnimatePresence mode="wait">
             {activeTab === 'home' && (
@@ -158,6 +161,9 @@ export default function App() {
             {activeTab === 'profile' && (
               <Profile key="profile" appState={appState} setSheet={setSheet} theme={theme} toggleTheme={toggleTheme} />
             )}
+            {activeTab === 'subscription' && (
+              <Subscription key="subscription" />
+            )}
           </AnimatePresence>
         </div>
         </div>
@@ -167,18 +173,6 @@ export default function App() {
 
       {/* Sheets */}
       <AnimatePresence>
-        {appState.activeSheet === 'billing_first' && (
-          <BillingFirstTime
-            key="billing_first"
-            onClose={() => setSheet(null)}
-            onSuccess={() => {
-              setSheet(null);
-              setAppState(prev => ({ ...prev, subscriptionStatus: 'active' }));
-              setToastMessage('PRO подписка успешно оформлена!');
-              setActiveTab('build');
-            }}
-          />
-        )}
         {appState.activeSheet === 'billing_renew' && (
           <BillingRenew
             key="billing_renew"
@@ -188,6 +182,18 @@ export default function App() {
               setSheet(null);
               setAppState(prev => ({ ...prev, subscriptionStatus: 'active' }));
               setToastMessage('Подписка успешно продлена!');
+            }}
+          />
+        )}
+        {appState.activeSheet === 'checkout' && appState.sheetData?.tariff && (
+          <CheckoutSheet
+            key="checkout"
+            tariffId={appState.sheetData.tariff}
+            onClose={() => setSheet(null)}
+            onSuccess={(email) => {
+              setAppState(prev => ({ ...prev, userEmail: email }));
+              setSheet(null);
+              alert(`Payment initiated for ${appState.sheetData.tariff} with email ${email}`);
             }}
           />
         )}

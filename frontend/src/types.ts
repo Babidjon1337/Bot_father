@@ -10,8 +10,8 @@ export interface FunnelNode {
   y: number;
 }
 
-export type TabType = 'home' | 'build' | 'flow' | 'profile';
-export type SheetType = 'billing_first' | 'billing_renew' | 'bot_switcher' | 'bot_settings' | null;
+export type TabType = 'home' | 'build' | 'flow' | 'profile' | 'subscription';
+export type SheetType = 'billing_first' | 'billing_renew' | 'bot_switcher' | 'bot_settings' | 'checkout' | null;
 export type PaymentProvider = 'yookassa' | 'robokassa' | 'prodamus';
 export type DeliveryType = 'link' | 'invite' | 'file';
 
@@ -30,5 +30,6 @@ export interface AppState {
   subscriptionUntil: string | null;
   userEmail: string;
   activeSheet: SheetType;
+  sheetData?: any;
   isDirty: boolean;
 }

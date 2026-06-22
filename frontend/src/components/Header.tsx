@@ -13,6 +13,7 @@ const TAB_TITLES: Record<TabType, string> = {
   build:   'Воронка',
   flow:    'Схема логики',
   profile: 'Профиль',
+  subscription: 'Подписка',
 };
 
 export const Header = ({ activeTab, appState, setSheet }: HeaderProps) => {
