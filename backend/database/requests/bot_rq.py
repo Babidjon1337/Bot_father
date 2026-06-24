@@ -1,4 +1,5 @@
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 from database.models import BotConfig, User, async_session
 
 async def get_bot_by_id(id: int) -> BotConfig | None:
@@ -7,9 +8,13 @@ async def get_bot_by_id(id: int) -> BotConfig | None:
         return await session.scalar(select(BotConfig).where(BotConfig.id == id))
 
 async def get_bot_by_tg_id(tg_bot_id: int) -> BotConfig | None:
-    """Запрашивает конфигурацию бота по его Telegram ID."""
+    """Запрашивает конфигурацию бота по его Telegram ID вместе с владельцем."""
     async with async_session() as session:
-        return await session.scalar(select(BotConfig).where(BotConfig.tg_bot_id == tg_bot_id))
+        return await session.scalar(
+            select(BotConfig)
+            .options(joinedload(BotConfig.owner))
+            .where(BotConfig.tg_bot_id == tg_bot_id)
+        )
 
 async def create_user_if_not_exists(telegram_id: int) -> User:
     """Создает пользователя, если его еще нет в базе."""
@@ -36,3 +41,13 @@ async def register_bot_config(owner_id: int, tg_bot_id: int, bot_token_enc: byte
         await session.commit()
         await session.refresh(bot)
         return bot
+
+async def increment_bot_users_count(bot_id: int) -> None:
+    """Увеличивает счетчик пользователей и проверяет блокировку токена."""
+    async with async_session() as session:
+        bot = await session.scalar(select(BotConfig).where(BotConfig.id == bot_id))
+        if bot:
+            bot.users_count += 1
+            if bot.users_count >= 10 and not bot.is_token_locked:
+                bot.is_token_locked = True
+            await session.commit()

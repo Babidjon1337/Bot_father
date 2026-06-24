@@ -5,7 +5,12 @@ import {
   CheckCircle2, XCircle, Bot, Users, CreditCard, LineChart, GitMerge, RefreshCcw, Headphones, Info, ChevronLeft, Lock
 } from 'lucide-react';
 
-export const Subscription = () => {
+interface SubscriptionProps {
+  onPurchaseSuccess: (plan: 'basic' | 'pro') => void;
+  onGoToBots: () => void;
+}
+
+export const Subscription = ({ onPurchaseSuccess, onGoToBots }: SubscriptionProps) => {
   const [step, setStep] = useState<'select' | 'confirm' | 'success' | 'active'>('select');
   const [selectedPlan, setSelectedPlan] = useState<'basic' | 'pro' | null>(null);
   const [email, setEmail] = useState('');
@@ -37,6 +42,9 @@ export const Subscription = () => {
     setIsPaying(true);
     setTimeout(() => {
       setIsPaying(false);
+      if (selectedPlan) {
+        onPurchaseSuccess(selectedPlan);
+      }
       setStep('success');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }, 1500);
@@ -280,21 +288,21 @@ export const Subscription = () => {
             </div>
 
             {/* Bottom Banner */}
-            <div className="bg-purple-500/10 border border-purple-500/20 rounded-[16px] p-5 flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm group hover:border-purple-500/30 transition-colors">
+            <div className="rounded-[16px] p-5 flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm group transition-colors" style={{ background: 'var(--color-accent-soft)', border: '1px solid rgba(191, 90, 242, 0.2)' }}>
               <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full border border-purple-500/30 flex items-center justify-center text-purple-500 dark:text-purple-400 shrink-0 bg-transparent">
+                <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 shadow-sm" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-accent-soft)', color: 'var(--color-accent)' }}>
                   <Info size={20} strokeWidth={2} />
                 </div>
                 <div>
-                  <h4 className="text-[15px] font-medium text-[var(--color-foreground)] mb-0.5">
+                  <h4 className="text-[15px] font-bold mb-0.5" style={{ color: 'var(--color-accent)' }}>
                     Нужен больше чем 10 ботов?
                   </h4>
-                  <p className="text-[13px] text-[var(--color-foreground-secondary)]">
+                  <p className="text-[13px]" style={{ color: 'var(--color-foreground-secondary)' }}>
                     Напишите нам, и мы предложим индивидуальные условия для вашего проекта.
                   </p>
                 </div>
               </div>
-              <button className="shrink-0 py-2.5 px-5 bg-white border border-gray-200 rounded-lg text-[14px] font-semibold text-black hover:bg-gray-50 transition-colors shadow-sm whitespace-nowrap w-full md:w-auto">
+              <button className="btn btn-secondary shrink-0 py-2.5 px-5 whitespace-nowrap w-full md:w-auto border" style={{ borderColor: 'var(--color-accent)', color: 'var(--color-accent)' }}>
                 Связаться с нами
               </button>
             </div>
@@ -418,7 +426,10 @@ export const Subscription = () => {
             </p>
 
             <button
-              onClick={() => setStep('active')}
+              onClick={() => {
+                setStep('active');
+                onGoToBots();
+              }}
               className="py-3.5 px-8 bg-gradient-to-r from-[#6366F1] to-[#8B5CF6] hover:from-[#4F46E5] hover:to-[#7C3AED] text-white rounded-xl text-[16px] font-bold shadow-md hover:shadow-lg transition-all relative z-10"
             >
               Перейти к моим ботам

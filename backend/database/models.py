@@ -38,6 +38,7 @@ class User(Base):
     subscription_ends_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True)
     )
+    lifetime_slots: Mapped[int] = mapped_column(Integer, default=0)
     agreed_to_tos_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True)
     )
@@ -62,11 +63,16 @@ class BotConfig(Base):
     owner_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
 
     # Настройки Telegram бота Зашифрованный Fernet токен
-    bot_token_enc: Mapped[bytes] = mapped_column(nullable=False)
-    tg_bot_id: Mapped[int] = mapped_column(
-        BigInteger, unique=True, index=True, nullable=False
+    bot_token_enc: Mapped[Optional[bytes]] = mapped_column(nullable=True)
+    tg_bot_id: Mapped[Optional[int]] = mapped_column(
+        BigInteger, unique=True, index=True, nullable=True
     )
     username: Mapped[Optional[str]] = mapped_column(String(255))
+
+    # Статус и статистика
+    status: Mapped[str] = mapped_column(String(20), default="draft") # draft, active, archived
+    users_count: Mapped[int] = mapped_column(Integer, default=0)
+    is_token_locked: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Настройки платежной системы (например, ЮKassa)
     payment_provider: Mapped[Optional[str]] = mapped_column(String(50))

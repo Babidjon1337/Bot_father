@@ -19,7 +19,12 @@ export interface BotConfig {
   id: string;
   name: string;
   username: string;
-  status: 'active' | 'draft' | 'stopped';
+  status: 'active' | 'draft' | 'archived';
+  usersCount: number;
+  isTokenLocked: boolean;
+  token?: string;
+  paymentProvider?: string;
+  paymentKeys?: Record<string, string>;
   funnelComplete: boolean;
 }
 

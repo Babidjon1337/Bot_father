@@ -33,6 +33,13 @@ async def start_command_handler(message: Message):
         logger.info(f"Воронка для бота {tg_bot_id} не найдена в БД!")
         return
 
+    if bot_config.status == "archived":
+        return
+    
+    if bot_config.status == "draft" and lead_id != bot_config.owner.telegram_id:
+        await message.answer("🛠 Бот находится в режиме разработки.")
+        return
+
     from database.requests.user_rq import get_lead
 
     lead = await get_lead(bot_config.id, lead_id)
@@ -47,6 +54,10 @@ async def start_command_handler(message: Message):
         # Если уже согласился ИЛИ ссылок нет совсем -> ведем сразу в воронку
         if not lead:
             await create_lead(tg_bot_id, lead_id, agreed=True)
+            
+            # Увеличиваем счетчик юзеров для активного бота
+            if bot_config.status == "active" and lead_id != bot_config.owner.telegram_id:
+                await increment_bot_users_count(bot_config.id)
 
         node_start = funnel.nodes.get("node_start")
         text_to_send = node_start.content.text
@@ -61,7 +72,12 @@ async def start_command_handler(message: Message):
         )
     else:
         # Если новый или еще не согласился ПРИ НАЛИЧИИ ссылок
-        await create_lead(tg_bot_id, lead_id, agreed=False)
+        if not lead:
+            await create_lead(tg_bot_id, lead_id, agreed=False)
+            
+            # Увеличиваем счетчик юзеров для активного бота
+            if bot_config.status == "active" and lead_id != bot_config.owner.telegram_id:
+                await increment_bot_users_count(bot_config.id)
 
         # Строим сообщение: текст \n ссылки
         links = []

@@ -16,7 +16,6 @@ import { CheckoutSheet } from './components/sheets/CheckoutSheet';
 import { BotSwitcher } from './components/sheets/BotSwitcher';
 import { BotSettings } from './components/sheets/BotSettings';
 import { Toast } from './components/Toast';
-import { OnboardingTour } from './components/OnboardingTour';
 
 import type { FunnelNode, TabType, AppState, SheetType } from './types';
 import { INITIAL_BLOCKS } from './constants';
@@ -37,14 +36,6 @@ export default function App() {
   const [selectedBlockId, setSelectedBlockId] = useState<string>('start');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
-  const [showTour, setShowTour] = useState<boolean>(() => {
-    return !localStorage.getItem('bf_tour_done');
-  });
-
-  const completeTour = () => {
-    localStorage.setItem('bf_tour_done', '1');
-    setShowTour(false);
-  };
 
   // Smart routing on mount
   useEffect(() => {
@@ -139,13 +130,23 @@ export default function App() {
                 setSelectedBlockId={setSelectedBlockId}
                 updateBlock={updateBlock}
                 onBotConnect={() => {
+                  const newBotId = `b${appState.bots.length + 1}`;
+                  const newBot: import('./types').BotConfig = { 
+                    id: newBotId, 
+                    name: 'Новый Бот', 
+                    username: '@new_bot', 
+                    status: 'draft', 
+                    usersCount: 0, 
+                    isTokenLocked: false, 
+                    funnelComplete: false 
+                  };
                   setAppState(prev => ({
                     ...prev,
-                    activeBot: { id: 'b1', name: 'Новый Бот', username: '@new_bot', status: 'active', funnelComplete: false },
-                    bots: [{ id: 'b1', name: 'Новый Бот', username: '@new_bot', status: 'active', funnelComplete: false }],
+                    activeBot: newBot,
+                    bots: [...prev.bots, newBot],
                   }));
                 }}
-                onPublish={() => setSheet('billing_first')}
+                onPublish={() => setActiveTab('subscription')}
               />
             )}
             {activeTab === 'flow' && (
@@ -159,10 +160,32 @@ export default function App() {
               />
             )}
             {activeTab === 'profile' && (
-              <Profile key="profile" appState={appState} setSheet={setSheet} theme={theme} toggleTheme={toggleTheme} />
+              <Profile key="profile" appState={appState} setSheet={setSheet} setActiveTab={setActiveTab} theme={theme} toggleTheme={toggleTheme} />
             )}
             {activeTab === 'subscription' && (
-              <Subscription key="subscription" />
+              <Subscription 
+                key="subscription" 
+                onPurchaseSuccess={(plan) => {
+                  setAppState(prev => {
+                    const nextState = { ...prev };
+                    if (plan === 'pro') {
+                      nextState.subscriptionStatus = 'active';
+                      // If there is an active bot and it's a draft, make it active
+                      if (nextState.activeBot && nextState.activeBot.status === 'draft') {
+                        nextState.activeBot.status = 'active';
+                      }
+                      nextState.bots = nextState.bots.map(b => b.id === nextState.activeBot?.id ? { ...b, status: 'active' } : b);
+                    } else if (plan === 'basic') {
+                      if (nextState.activeBot && nextState.activeBot.status === 'draft') {
+                        nextState.activeBot.status = 'active';
+                      }
+                      nextState.bots = nextState.bots.map(b => b.id === nextState.activeBot?.id ? { ...b, status: 'active' } : b);
+                    }
+                    return nextState;
+                  });
+                }}
+                onGoToBots={() => setActiveTab('home')}
+              />
             )}
           </AnimatePresence>
         </div>
@@ -210,7 +233,23 @@ export default function App() {
               setSheet(null);
             }}
             onAddBot={() => {
-              setSheet('billing_first');
+              const newBotId = `b${appState.bots.length + 1}`;
+              const newBot: import('./types').BotConfig = { 
+                id: newBotId, 
+                name: 'Новый Бот', 
+                username: '@new_bot', 
+                status: 'draft', 
+                usersCount: 0, 
+                isTokenLocked: false, 
+                funnelComplete: false 
+              };
+              setAppState(prev => ({
+                ...prev,
+                activeBot: newBot,
+                bots: [...prev.bots, newBot],
+              }));
+              setSheet(null);
+              setActiveTab('build');
             }}
           />
         )}
@@ -226,9 +265,6 @@ export default function App() {
       {toastMessage && (
         <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
       )}
-
-      {/* Onboarding Tour — shown once to new users */}
-      {showTour && <OnboardingTour onComplete={completeTour} />}
     </div>
   );
 }

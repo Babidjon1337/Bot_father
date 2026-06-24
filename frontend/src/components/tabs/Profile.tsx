@@ -1,15 +1,16 @@
 import { motion } from 'framer-motion';
 import { CreditCard, ShieldCheck, Settings, Sun, Moon } from 'lucide-react';
-import type { AppState, SheetType } from '../../types';
+import type { AppState, SheetType, TabType } from '../../types';
 
 interface ProfileProps {
   appState: AppState;
   setSheet: (sheet: SheetType) => void;
+  setActiveTab: (tab: TabType) => void;
   theme: 'light' | 'dark';
   toggleTheme: () => void;
 }
 
-export const Profile = ({ appState, setSheet, theme, toggleTheme }: ProfileProps) => {
+export const Profile = ({ appState, setSheet, setActiveTab, theme, toggleTheme }: ProfileProps) => {
   const isSubscribed = appState.subscriptionStatus === 'active';
 
   return (
@@ -116,7 +117,13 @@ export const Profile = ({ appState, setSheet, theme, toggleTheme }: ProfileProps
 
             <div style={{ marginTop: 'auto', paddingTop: '16px' }}>
               <button
-                onClick={() => setSheet(isSubscribed ? 'billing_renew' : 'billing_first')}
+                onClick={() => {
+                  if (isSubscribed || appState.subscriptionStatus === 'expired') {
+                    setSheet('billing_renew');
+                  } else {
+                    setActiveTab('subscription');
+                  }
+                }}
                 className={`btn ${isSubscribed ? 'btn-secondary' : 'btn-primary'}`}
                 style={{ height: '36px', width: '100%', fontSize: '13px' }}
               >

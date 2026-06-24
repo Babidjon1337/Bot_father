@@ -10,10 +10,30 @@ interface BotSettingsProps {
   onSave: () => void;
 }
 
-export const BotSettings = ({ onClose, onSave }: BotSettingsProps) => {
-  const [token, setToken] = useState('1234567890:AAH_xxxxxxxxxxxxxxx'); // mock existing
-  const [provider, setProvider] = useState<PaymentProvider>('yookassa');
-  const [keys, setKeys] = useState<Record<string, string>>({ shopId: '123456', secretKey: 'test_xxxx' });
+export const BotSettings = ({ appState, onClose, onSave }: BotSettingsProps) => {
+  const activeBot = appState.activeBot;
+  
+  const [token, setToken] = useState(activeBot?.token || '');
+  const [provider, setProvider] = useState<PaymentProvider>((activeBot?.paymentProvider as PaymentProvider) || 'yookassa');
+  const [keys, setKeys] = useState<Record<string, string>>(activeBot?.paymentKeys || { shopId: '', secretKey: '' });
+
+  const isPro = appState.subscriptionStatus === 'active';
+  const hasManyUsers = (activeBot?.usersCount || 0) > 10;
+
+  const canEditToken = isPro && !hasManyUsers;
+  const canEditPayment = isPro;
+
+  const handleSave = () => {
+    // mock save to app state if needed, here we just call onSave
+    // we would actually update appState.bots here, but let's assume parent handles it or it's a mock
+    if (activeBot) {
+      activeBot.token = token;
+      activeBot.paymentProvider = provider;
+      activeBot.paymentKeys = keys;
+    }
+    onSave();
+    onClose();
+  };
 
   return (
     <>
@@ -45,8 +65,18 @@ export const BotSettings = ({ onClose, onSave }: BotSettingsProps) => {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxHeight: '60vh', overflowY: 'auto', paddingRight: '4px' }}>
+          
+          {!isPro && (
+            <div style={{ padding: '12px 16px', background: 'var(--color-warning-soft)', border: '1px solid rgba(255,149,0,0.2)', borderRadius: '12px', display: 'flex', gap: '12px', alignItems: 'center' }}>
+              <span style={{ fontSize: '18px' }}>💎</span>
+              <p style={{ fontSize: '13px', color: 'var(--color-warning)', margin: 0 }}>
+                Настройка токена и платёжной системы доступна только на тарифе PRO.
+              </p>
+            </div>
+          )}
+
           {/* Token */}
-          <div>
+          <div style={{ opacity: !isPro ? 0.6 : 1, pointerEvents: !isPro ? 'none' : 'auto' }}>
             <label className="text-label" style={{ display: 'block', marginBottom: '8px' }}>Токен Telegram бота</label>
             <div style={{ position: 'relative' }}>
               <KeyRound size={15} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-foreground-tertiary)' }} />
@@ -54,14 +84,22 @@ export const BotSettings = ({ onClose, onSave }: BotSettingsProps) => {
                 type="text"
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
+                disabled={!canEditToken}
+                placeholder="Например: 1234567890:AAH_..."
                 className="input"
-                style={{ paddingLeft: '40px' }}
+                style={{ paddingLeft: '40px', opacity: !canEditToken ? 0.6 : 1, cursor: !canEditToken ? 'not-allowed' : 'text' }}
               />
             </div>
+            {isPro && hasManyUsers && (
+              <p style={{ marginTop: '8px', fontSize: '12px', color: 'var(--color-warning)', display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
+                <span style={{ fontSize: '14px' }}>🔒</span>
+                У вас более 10 пользователей в боте. Изменение токена заблокировано для безопасности.
+              </p>
+            )}
           </div>
 
           {/* Payment provider */}
-          <div>
+          <div style={{ opacity: !isPro ? 0.6 : 1, pointerEvents: !isPro ? 'none' : 'auto' }}>
             <label className="text-label" style={{ display: 'block', marginBottom: '8px' }}>Платёжная система</label>
             <div
               style={{
@@ -74,9 +112,11 @@ export const BotSettings = ({ onClose, onSave }: BotSettingsProps) => {
                 <button
                   key={p}
                   onClick={() => { setProvider(p); setKeys({}); }}
+                  disabled={!canEditPayment}
                   style={{
                     height: '34px', borderRadius: '6px', fontSize: '13px',
-                    fontWeight: provider === p ? 500 : 400, cursor: 'pointer', border: 'none',
+                    fontWeight: provider === p ? 500 : 400, border: 'none',
+                    cursor: canEditPayment ? 'pointer' : 'not-allowed',
                     background: provider === p ? 'var(--color-surface)' : 'transparent',
                     color: provider === p ? 'var(--color-foreground)' : 'var(--color-foreground-secondary)',
                     boxShadow: provider === p ? 'var(--shadow-card)' : 'none',
@@ -102,7 +142,9 @@ export const BotSettings = ({ onClose, onSave }: BotSettingsProps) => {
                       placeholder={field.hint}
                       value={keys[field.key] || ''}
                       onChange={(e) => setKeys(prev => ({ ...prev, [field.key]: e.target.value }))}
+                      disabled={!canEditPayment}
                       className="input"
+                      style={{ opacity: !canEditPayment ? 0.6 : 1, cursor: !canEditPayment ? 'not-allowed' : 'text' }}
                     />
                   </motion.div>
                 ))}
@@ -113,11 +155,29 @@ export const BotSettings = ({ onClose, onSave }: BotSettingsProps) => {
 
         <div style={{ marginTop: '24px' }}>
           <button
-            onClick={() => { onSave(); onClose(); }}
+            onClick={handleSave}
+            disabled={!isPro}
             className="btn btn-action"
-            style={{ width: '100%', height: '48px', fontSize: '15px' }}
+            style={{ width: '100%', height: '48px', fontSize: '15px', opacity: !isPro ? 0.5 : 1 }}
           >
             Сохранить изменения
+          </button>
+        </div>
+
+        {/* Дев-кнопки для тестирования логики блокировок */}
+        <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+          <button
+            onClick={() => {
+              if (activeBot) {
+                activeBot.usersCount = 11;
+                // mock state change
+                setToken(token + ' ');
+                setToken(token);
+              }
+            }}
+            style={{ fontSize: '12px', color: 'var(--color-foreground-secondary)', background: 'none', border: 'none', textDecoration: 'underline', cursor: 'pointer' }}
+          >
+            (Дев) Сделать &gt;10 юзеров
           </button>
         </div>
       </motion.div>
