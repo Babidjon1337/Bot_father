@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { CreditCard, ShieldCheck, Settings, Sun, Moon } from 'lucide-react';
+import { ShieldCheck, Sun, Moon, BarChart2 } from 'lucide-react';
 import type { AppState, SheetType, TabType } from '../../types';
 
 interface ProfileProps {
@@ -76,19 +76,6 @@ export const Profile = ({ appState, setSheet, setActiveTab, theme, toggleTheme }
           </div>
         </div>
 
-        {/* Informative Editor Warning */}
-        <div style={{
-          background: 'var(--color-surface-2)',
-          borderLeft: '3px solid var(--color-primary)',
-          padding: '12px 16px',
-          borderRadius: '0 var(--radius-sm) var(--radius-sm) 0',
-          fontSize: '13px',
-          color: 'var(--color-foreground)',
-          lineHeight: 1.5,
-        }}>
-          <strong>Режим редактирования:</strong> Ниже указаны настройки платёжных систем и параметры для <strong>текущего выбранного бота</strong>. Если вы сохранили настройки — они сразу применяются к воронке.
-        </div>
-
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {/* Subscription block */}
           <div className="card">
@@ -132,38 +119,24 @@ export const Profile = ({ appState, setSheet, setActiveTab, theme, toggleTheme }
             </div>
           </div>
 
-          {/* Payment integrations */}
-          <div className="card">
-            <div className="flex items-center justify-between" style={{ marginBottom: '16px' }}>
-              <div className="flex items-center gap-3">
-                <CreditCard size={18} style={{ color: 'var(--color-foreground-tertiary)' }} />
-                <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--color-foreground)' }}>Интеграции</span>
-              </div>
-              <button
-                onClick={() => setSheet('bot_settings')}
-                className="btn btn-ghost"
-                style={{ height: '32px', width: '32px', padding: 0, color: 'var(--color-foreground-tertiary)' }}
-                title="Настройки интеграций"
-              >
-                <Settings size={16} />
-              </button>
+          {/* Quick Stats */}
+          <div className="card flex flex-col justify-between">
+            <div className="flex items-center gap-3" style={{ marginBottom: '16px' }}>
+              <BarChart2 size={18} style={{ color: 'var(--color-foreground-tertiary)' }} />
+              <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--color-foreground)' }}>Статистика аккаунта</span>
             </div>
-            <div>
-              {[
-                { name: 'ЮKassa', active: true },
-                { name: 'Robokassa', active: false },
-                { name: 'Prodamus', active: false },
-              ].map((p, i) => (
-                <div key={i} className="card-row flex items-center justify-between" style={{ paddingTop: i === 0 ? 0 : '14px' }}>
-                  <span style={{ fontSize: '14px', color: 'var(--color-foreground)' }}>{p.name}</span>
-                  <div className="flex items-center gap-2">
-                    <span className="status-dot" style={{ background: p.active ? 'var(--color-success)' : 'var(--color-foreground-tertiary)' }} />
-                    <span style={{ fontSize: '13px', color: p.active ? 'var(--color-success)' : 'var(--color-foreground-tertiary)' }}>
-                      {p.active ? 'Подключено' : 'Не настроено'}
-                    </span>
-                  </div>
-                </div>
-              ))}
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-[var(--color-surface-2)] p-4 rounded-xl flex flex-col justify-center">
+                <span className="text-[12px] text-[var(--color-foreground-secondary)] mb-1">Создано ботов</span>
+                <span className="text-2xl font-bold text-[var(--color-foreground)]">{appState.bots.length}</span>
+              </div>
+              <div className="bg-[var(--color-surface-2)] p-4 rounded-xl flex flex-col justify-center">
+                <span className="text-[12px] text-[var(--color-foreground-secondary)] mb-1">Пользователей</span>
+                <span className="text-2xl font-bold text-[var(--color-foreground)]">
+                  {appState.bots.reduce((acc, bot) => acc + bot.usersCount, 0)}
+                </span>
+              </div>
             </div>
           </div>
         </div>

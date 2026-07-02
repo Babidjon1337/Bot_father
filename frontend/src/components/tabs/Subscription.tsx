@@ -5,12 +5,15 @@ import {
   CheckCircle2, XCircle, Bot, Users, CreditCard, LineChart, GitMerge, RefreshCcw, Headphones, Info, ChevronLeft, Lock
 } from 'lucide-react';
 
+import type { AppState } from '../../types';
+
 interface SubscriptionProps {
+  appState: AppState;
   onPurchaseSuccess: (plan: 'basic' | 'pro') => void;
   onGoToBots: () => void;
 }
 
-export const Subscription = ({ onPurchaseSuccess, onGoToBots }: SubscriptionProps) => {
+export const Subscription = ({ appState, onPurchaseSuccess, onGoToBots }: SubscriptionProps) => {
   const [step, setStep] = useState<'select' | 'confirm' | 'success' | 'active'>('select');
   const [selectedPlan, setSelectedPlan] = useState<'basic' | 'pro' | null>(null);
   const [email, setEmail] = useState('');
@@ -95,6 +98,153 @@ export const Subscription = ({ onPurchaseSuccess, onGoToBots }: SubscriptionProp
         }
       `}</style>
 
+      {appState.subscriptionStatus === 'active' ? (
+        <motion.div
+          key="active-sub"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="pb-24 max-w-5xl mx-auto px-4 md:px-8 mt-6"
+        >
+          {/* Top Banner */}
+          <div className="bg-[var(--color-primary-soft)] rounded-2xl p-8 mb-6 flex flex-col md:flex-row gap-8 md:items-start justify-between">
+            <div className="flex gap-6">
+              <div className="w-24 h-24 bg-white dark:bg-black rounded-full flex items-center justify-center shadow-sm shrink-0">
+                <Crown size={40} className="text-[var(--color-accent)]" />
+              </div>
+              <div>
+                <div className="text-[14px] text-[var(--color-foreground-secondary)] mb-1">Ваш тариф</div>
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="text-4xl font-bold text-[var(--color-foreground)]">PRO</span>
+                  <span className="px-3 py-1 bg-[var(--color-success-soft)] text-[var(--color-success)] text-[12px] font-bold rounded-full">
+                    ✓ Активен
+                  </span>
+                </div>
+                <div className="text-[18px] font-bold text-[var(--color-foreground)] mb-1">
+                  {appState.bots.length} из 10 ботов
+                </div>
+                <div className="text-[14px] text-[var(--color-foreground-secondary)]">
+                  Вы используете {appState.bots.length} бота из доступных 10
+                </div>
+              </div>
+            </div>
+            
+            <div className="md:text-right pt-2 md:pt-0">
+              <div className="text-[14px] text-[var(--color-foreground-secondary)] mb-2">Следующее списание</div>
+              <div className="text-[20px] font-bold text-[var(--color-foreground)] mb-2">25 июля 2025</div>
+              <div className="text-[14px] text-[var(--color-foreground-secondary)]">Списания проходят автоматически</div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            {/* What's included */}
+            <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-8 h-8 rounded bg-[var(--color-accent-soft)] text-[var(--color-accent)] flex items-center justify-center">
+                  <Crown size={18} />
+                </div>
+                <h3 className="text-[16px] font-bold text-[var(--color-foreground)]">Что включено в PRO</h3>
+              </div>
+              <ul className="space-y-4">
+                {[
+                  'До 10 ботов',
+                  'Неограниченные воронки',
+                  'Приём платежей',
+                  'Расширенная аналитика',
+                  'Приоритетная поддержка',
+                  'Интеграции (ЮKassa, Robokassa и др.)'
+                ].map((feature, i) => (
+                  <li key={i} className="flex items-center gap-3 text-[14px] text-[var(--color-foreground-secondary)]">
+                    <div className="w-5 h-5 rounded-full bg-[var(--color-accent-soft)] text-[var(--color-accent)] flex items-center justify-center shrink-0">
+                      <CheckCircle2 size={12} />
+                    </div>
+                    {feature}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Bots Usage */}
+            <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-6 flex flex-col">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-8 h-8 rounded bg-[var(--color-accent-soft)] text-[var(--color-accent)] flex items-center justify-center">
+                  <Bot size={18} />
+                </div>
+                <h3 className="text-[16px] font-bold text-[var(--color-foreground)]">Использование ботов</h3>
+              </div>
+              
+              <div className="flex items-end justify-between mb-2">
+                <span className="text-[15px] font-bold text-[var(--color-foreground)]">{appState.bots.length} из 10</span>
+                <span className="text-[14px] text-[var(--color-foreground-secondary)]">{Math.round((appState.bots.length / 10) * 100)}%</span>
+              </div>
+              <div className="h-2 w-full bg-[var(--color-surface-2)] rounded-full overflow-hidden mb-6">
+                <div 
+                  className="h-full bg-[var(--color-accent)] rounded-full transition-all" 
+                  style={{ width: `${(appState.bots.length / 10) * 100}%` }}
+                />
+              </div>
+
+              <div className="space-y-4 flex-1">
+                {appState.bots.slice(0, 3).map((bot, i) => (
+                  <div key={bot.id} className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div 
+                        className="w-8 h-8 rounded-full text-white flex items-center justify-center text-[12px] font-bold"
+                        style={{ backgroundColor: `hsl(${i * 45 + 210}, 80%, 60%)` }}
+                      >
+                        {bot.name.substring(0, 2).toUpperCase()}
+                      </div>
+                      <span className="text-[14px] text-[var(--color-foreground-secondary)]">@{bot.username || 'bot'}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-[var(--color-success)]" />
+                      <span className="text-[13px] text-[var(--color-success)] font-medium">Активен</span>
+                    </div>
+                  </div>
+                ))}
+                {appState.bots.length === 0 && (
+                  <div className="text-[14px] text-[var(--color-foreground-secondary)] text-center py-4">
+                    У вас пока нет ботов
+                  </div>
+                )}
+              </div>
+
+              <button 
+                onClick={onGoToBots}
+                className="w-full mt-6 py-3 border border-[var(--color-border)] rounded-xl text-[14px] font-medium text-[var(--color-foreground)] hover:bg-[var(--color-surface-2)] transition-colors"
+              >
+                Управление ботами
+              </button>
+            </div>
+          </div>
+
+          {/* Payment History */}
+          <div>
+            <h3 className="text-[16px] font-bold text-[var(--color-foreground)] mb-4">История платежей</h3>
+            <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl overflow-hidden">
+              <table className="w-full text-left">
+                <tbody>
+                  {[
+                    { date: '25 июня 2025', plan: 'PRO тариф', status: 'Успешно', amount: '2 990 ₽' },
+                    { date: '25 мая 2025', plan: 'PRO тариф', status: 'Успешно', amount: '2 990 ₽' },
+                    { date: '25 апреля 2025', plan: 'PRO тариф', status: 'Успешно', amount: '2 990 ₽' },
+                  ].map((row, i) => (
+                    <tr key={i} className="border-b border-[var(--color-border)] last:border-0">
+                      <td className="py-4 px-6 text-[14px] text-[var(--color-foreground-secondary)] w-1/4">{row.date}</td>
+                      <td className="py-4 px-6 text-[14px] text-[var(--color-foreground)] font-medium w-1/4">{row.plan}</td>
+                      <td className="py-4 px-6 w-1/4">
+                        <span className="px-2.5 py-1 bg-[var(--color-success-soft)] text-[var(--color-success)] text-[12px] font-medium rounded-md">
+                          {row.status}
+                        </span>
+                      </td>
+                      <td className="py-4 px-6 text-[14px] font-bold text-[var(--color-foreground)] text-right w-1/4">{row.amount}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </motion.div>
+      ) : (
       <AnimatePresence mode="wait">
         {step === 'select' && (
           <motion.div
@@ -487,6 +637,7 @@ export const Subscription = ({ onPurchaseSuccess, onGoToBots }: SubscriptionProp
           </motion.div>
         )}
       </AnimatePresence>
+      )}
     </div>
   );
 };

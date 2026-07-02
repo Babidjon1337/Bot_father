@@ -9,9 +9,10 @@ interface BotSwitcherProps {
   onSelect: (id: string) => void;
   onAddBot: () => void;
   onClose: () => void;
+  onToggleStatus?: (botId: string, newStatus: 'active' | 'inactive') => void;
 }
 
-export const BotSwitcher = ({ bots, activeBotId, subscriptionStatus, onSelect, onAddBot, onClose }: BotSwitcherProps) => {
+export const BotSwitcher = ({ bots, activeBotId, subscriptionStatus, onSelect, onAddBot, onClose, onToggleStatus }: BotSwitcherProps) => {
   const isPro = subscriptionStatus === 'active';
 
   return (
@@ -46,7 +47,7 @@ export const BotSwitcher = ({ bots, activeBotId, subscriptionStatus, onSelect, o
 
         {/* Active bots */}
         {bots.map(bot => (
-          <button
+          <div
             key={bot.id}
             onClick={() => onSelect(bot.id)}
             style={{
@@ -67,12 +68,33 @@ export const BotSwitcher = ({ bots, activeBotId, subscriptionStatus, onSelect, o
                 {bot.name.substring(0, 2).toUpperCase()}
               </div>
               <div style={{ textAlign: 'left' }}>
-                <div style={{ fontSize: '14px', fontWeight: bot.id === activeBotId ? 500 : 400, color: 'var(--color-foreground)' }}>{bot.name}</div>
+                <div style={{ fontSize: '14px', fontWeight: bot.id === activeBotId ? 500 : 400, color: 'var(--color-foreground)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {bot.name}
+                  {bot.id === activeBotId && <Check size={14} style={{ color: 'var(--color-primary)' }} />}
+                </div>
                 <div style={{ fontSize: '12px', color: 'var(--color-foreground-tertiary)', marginTop: '1px' }}>{bot.username}</div>
               </div>
             </div>
-            {bot.id === activeBotId && <Check size={15} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />}
-          </button>
+
+            {/* Status Toggle */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onToggleStatus) {
+                  onToggleStatus(bot.id, bot.status === 'active' ? 'inactive' : 'active');
+                }
+              }}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                padding: '4px 8px', borderRadius: '12px', border: 'none',
+                background: bot.status === 'active' ? 'var(--color-success-soft)' : 'var(--color-surface-2)',
+                color: bot.status === 'active' ? 'var(--color-success)' : 'var(--color-foreground-tertiary)',
+                fontSize: '11px', fontWeight: 600, cursor: 'pointer', flexShrink: 0,
+              }}
+            >
+              {bot.status === 'active' ? 'ВКЛ' : 'ВЫКЛ'}
+            </button>
+          </div>
         ))}
 
         {/* Locked slot (shown to non-PRO users who already have 1 bot, to tease PRO) */}

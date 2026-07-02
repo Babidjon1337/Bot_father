@@ -1,4 +1,4 @@
-import { Home, Layers, User, GitBranch, Crown, Settings, Moon, ChevronDown } from 'lucide-react';
+import { Home, Layers, User, GitBranch, Crown, Settings, Moon, ChevronDown, Star } from 'lucide-react';
 import { cn } from '../utils';
 import type { TabType, AppState, SheetType } from '../types';
 
@@ -176,33 +176,102 @@ export const Sidebar = ({ activeTab, setActiveTab, appState, setSheet, theme, to
           </button>
 
           {/* Tariff Card */}
-          <div className="mt-1 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-3">
-            <div style={{ fontSize: '11px', color: 'var(--color-foreground-secondary)' }} className="mb-1">Ваш тариф</div>
-            <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-foreground)' }} className="mb-2">
-              {isSubscribed ? 'PRO Подписка' : 'Базовый'}
+          {isSubscribed ? (
+            <div className="mt-1 magic-border-container shadow-sm" style={{ borderRadius: 'var(--radius-xl)' }}>
+              <div 
+                className="magic-border-content p-3" 
+                style={{ borderRadius: 'calc(var(--radius-xl) - 1px)', background: 'var(--color-surface)' }}
+              >
+                <div style={{ fontSize: '12px', color: 'var(--color-foreground-secondary)' }} className="mb-2">Ваш тариф</div>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ background: 'var(--color-accent-soft)' }}>
+                    <Crown size={20} style={{ color: 'var(--color-accent)', fill: 'var(--color-accent)' }} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--color-foreground)', marginBottom: '2px' }}>PRO</div>
+                    <div style={{ fontSize: '12px', color: 'var(--color-foreground-secondary)' }}>
+                      <span style={{ color: 'var(--color-accent)', fontWeight: 600 }}>{appState.bots.length}</span> из 10 ботов
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="status-dot" style={{ background: 'var(--color-success)', width: '6px', height: '6px' }} />
+                  <span style={{ fontSize: '12px', color: 'var(--color-foreground-secondary)' }}>Активен</span>
+                </div>
+                <button
+                  onClick={() => setActiveTab('subscription')}
+                  className="w-full flex items-center justify-center gap-2 py-1.5 rounded-lg border border-[var(--color-border)] hover:bg-[var(--color-surface-2)] transition-colors"
+                >
+                  <Settings size={14} className="text-[var(--color-foreground-secondary)]" />
+                  <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-foreground)' }}>Управление</span>
+                </button>
+              </div>
             </div>
-            <div className="flex items-center gap-2 mb-3">
-              <span style={{ fontSize: '12px', color: 'var(--color-foreground-secondary)' }}>
-                {isSubscribed ? `${appState.bots.length} из 10 ботов` : '1 бот'}
-              </span>
-              <span
-                className="status-dot"
-                style={{
-                  background: 'var(--color-success)',
-                  width: '6px',
-                  height: '6px',
-                }}
-              />
-              <span style={{ fontSize: '12px', color: 'var(--color-foreground-secondary)' }}>Активен</span>
-            </div>
-            <button
-              onClick={() => setActiveTab('subscription')}
-              className="w-full flex items-center justify-center gap-2 py-1.5 rounded-lg border border-[var(--color-border)] hover:bg-[var(--color-surface-2)] transition-colors"
+          ) : (
+            <div 
+              className="mt-1 bg-[var(--color-surface)] border rounded-xl p-3 transition-colors"
+              style={{
+                borderColor: appState.bots.length > 0 ? 'var(--color-primary)' : 'var(--color-border)',
+                boxShadow: appState.bots.length > 0 ? '0 0 15px var(--color-primary-soft)' : 'none'
+              }}
             >
-              <Settings size={14} className="text-[var(--color-foreground-secondary)]" />
-              <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-foreground)' }}>Управление</span>
-            </button>
-          </div>
+              <div style={{ fontSize: '12px', color: 'var(--color-foreground-secondary)' }} className="mb-2">Ваш тариф</div>
+              
+              {/* State 1: Не выбран */}
+              {!appState.bots.length && (
+                <>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ background: 'var(--color-surface-2)' }}>
+                      <User size={20} style={{ color: 'var(--color-foreground-tertiary)' }} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--color-foreground)', marginBottom: '2px' }}>Не выбран</div>
+                      <div style={{ fontSize: '12px', color: 'var(--color-foreground-secondary)' }}>Ботов: 0</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="status-dot" style={{ background: 'var(--color-foreground-tertiary)', width: '6px', height: '6px' }} />
+                    <span style={{ fontSize: '12px', color: 'var(--color-foreground-secondary)' }}>Не активирован</span>
+                  </div>
+                  <button
+                    onClick={() => setActiveTab('manage')}
+                    className="w-full flex items-center justify-center gap-2 py-1.5 rounded-lg border border-[var(--color-border)] hover:bg-[var(--color-surface-2)] transition-colors"
+                  >
+                    <Settings size={14} className="text-[var(--color-foreground-secondary)]" />
+                    <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-foreground)' }}>Управление</span>
+                  </button>
+                </>
+              )}
+
+              {/* State 2: Базовый */}
+              {appState.bots.length > 0 && (
+                <>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ background: 'var(--color-primary-soft)' }}>
+                      <Star size={20} style={{ color: 'var(--color-primary)', fill: 'var(--color-primary)' }} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--color-foreground)', marginBottom: '2px' }}>Базовый</div>
+                      <div style={{ fontSize: '12px', color: 'var(--color-foreground-secondary)' }}>
+                        <span style={{ color: 'var(--color-primary)', fontWeight: 600 }}>{appState.bots.length}</span> из 1 ботов
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="status-dot" style={{ background: 'var(--color-success)', width: '6px', height: '6px' }} />
+                    <span style={{ fontSize: '12px', color: 'var(--color-foreground-secondary)' }}>Активен</span>
+                  </div>
+                  <button
+                    onClick={() => setActiveTab('manage')}
+                    className="w-full flex items-center justify-center gap-2 py-1.5 rounded-lg border border-[var(--color-border)] hover:bg-[var(--color-surface-2)] transition-colors"
+                  >
+                    <Settings size={14} className="text-[var(--color-foreground-secondary)]" />
+                    <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-foreground)' }}>Управление</span>
+                  </button>
+                </>
+              )}
+            </div>
+          )}
 
           <button
             onClick={toggleTheme}

@@ -1,5 +1,4 @@
-import { Save, ChevronDown } from 'lucide-react';
-import { cn } from '../utils';
+import { ChevronDown } from 'lucide-react';
 import type { TabType, AppState, SheetType } from '../types';
 
 interface HeaderProps {
@@ -14,10 +13,11 @@ const TAB_TITLES: Record<TabType, string> = {
   flow:    'Схема логики',
   profile: 'Профиль',
   subscription: 'Подписка',
+  manage: 'Управление ботами'
 };
 
 export const Header = ({ activeTab, appState, setSheet }: HeaderProps) => {
-  const { activeBot, isDirty } = appState;
+  const { activeBot } = appState;
 
   return (
     <header
@@ -48,28 +48,8 @@ export const Header = ({ activeTab, appState, setSheet }: HeaderProps) => {
         )}
       </div>
 
-      {/* Right: save icon for build tab */}
-      <div className="flex items-center gap-2">
-        {activeTab === 'build' && (
-          <button
-            title="Сохранить черновик"
-            onClick={() => {
-              const tg = (window as any).Telegram?.WebApp;
-              if (tg) tg.HapticFeedback.impactOccurred('medium');
-            }}
-            className={cn(
-              'flex items-center gap-2 px-3 rounded-[var(--radius-xs)] transition-colors duration-150',
-              isDirty
-                ? 'text-[var(--color-primary)] hover:bg-[var(--color-primary-soft)]'
-                : 'text-[var(--color-foreground-tertiary)] hover:bg-black/[0.04] hover:text-[var(--color-foreground-secondary)]'
-            )}
-            style={{ height: '32px', fontSize: '13px', fontWeight: 400 }}
-          >
-            <Save size={15} strokeWidth={1.75} />
-            {isDirty && <span>Сохранить</span>}
-          </button>
-        )}
-      </div>
+      {/* Right side is intentionally left empty since the save button is in the bottom bar */}
+      <div className="flex items-center gap-2" />
     </header>
   );
 };

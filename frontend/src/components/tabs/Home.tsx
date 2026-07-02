@@ -13,6 +13,7 @@ interface HomeProps {
   appState: AppState;
   setActiveTab: (tab: TabType) => void;
   setSheet: (sheet: SheetType) => void;
+  onCreateBot: () => void;
 }
 
 const STATS_DATA = [
@@ -25,7 +26,7 @@ const STATS_DATA = [
   { name: 'Вс', views: 700, sales: 50 },
 ];
 
-export const Home = ({ appState, setActiveTab, setSheet }: HomeProps) => {
+export const Home = ({ appState, setActiveTab, setSheet, onCreateBot }: HomeProps) => {
   const hasBot = appState.activeBot !== null;
   const isSubscribed = appState.subscriptionStatus === 'active';
 
@@ -65,7 +66,7 @@ export const Home = ({ appState, setActiveTab, setSheet }: HomeProps) => {
             </p>
             <div className="flex flex-col sm:flex-row items-center gap-3">
               <button 
-                onClick={() => setSheet('bot_settings')}
+                onClick={onCreateBot}
                 className="btn btn-primary w-full sm:w-auto px-6 py-3"
               >
                 Создать первого бота
@@ -128,7 +129,7 @@ export const Home = ({ appState, setActiveTab, setSheet }: HomeProps) => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             
             {/* Action 1 */}
-            <div className="card group cursor-pointer p-5 flex flex-col h-full" onClick={() => setSheet('bot_settings')}>
+            <div className="card group cursor-pointer p-5 flex flex-col h-full" onClick={() => setActiveTab('build')}>
               <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform" style={{ background: 'var(--color-primary-soft)', color: 'var(--color-primary)' }}>
                 <Bot size={24} />
               </div>

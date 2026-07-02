@@ -20,12 +20,13 @@ export const BotSettings = ({ appState, onClose, onSave }: BotSettingsProps) => 
   const isPro = appState.subscriptionStatus === 'active';
   const hasManyUsers = (activeBot?.usersCount || 0) > 10;
 
-  const canEditToken = isPro && !hasManyUsers;
-  const canEditPayment = isPro;
+  // Токен блокируется только если нет PRO подписки И юзеров больше 10
+  const isTokenLocked = !isPro && hasManyUsers;
+
+  const canEditToken = !isTokenLocked;
+  const canEditPayment = true;
 
   const handleSave = () => {
-    // mock save to app state if needed, here we just call onSave
-    // we would actually update appState.bots here, but let's assume parent handles it or it's a mock
     if (activeBot) {
       activeBot.token = token;
       activeBot.paymentProvider = provider;
@@ -65,18 +66,9 @@ export const BotSettings = ({ appState, onClose, onSave }: BotSettingsProps) => 
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxHeight: '60vh', overflowY: 'auto', paddingRight: '4px' }}>
-          
-          {!isPro && (
-            <div style={{ padding: '12px 16px', background: 'var(--color-warning-soft)', border: '1px solid rgba(255,149,0,0.2)', borderRadius: '12px', display: 'flex', gap: '12px', alignItems: 'center' }}>
-              <span style={{ fontSize: '18px' }}>💎</span>
-              <p style={{ fontSize: '13px', color: 'var(--color-warning)', margin: 0 }}>
-                Настройка токена и платёжной системы доступна только на тарифе PRO.
-              </p>
-            </div>
-          )}
 
           {/* Token */}
-          <div style={{ opacity: !isPro ? 0.6 : 1, pointerEvents: !isPro ? 'none' : 'auto' }}>
+          <div>
             <label className="text-label" style={{ display: 'block', marginBottom: '8px' }}>Токен Telegram бота</label>
             <div style={{ position: 'relative' }}>
               <KeyRound size={15} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-foreground-tertiary)' }} />
@@ -90,16 +82,16 @@ export const BotSettings = ({ appState, onClose, onSave }: BotSettingsProps) => 
                 style={{ paddingLeft: '40px', opacity: !canEditToken ? 0.6 : 1, cursor: !canEditToken ? 'not-allowed' : 'text' }}
               />
             </div>
-            {isPro && hasManyUsers && (
+            {isTokenLocked && (
               <p style={{ marginTop: '8px', fontSize: '12px', color: 'var(--color-warning)', display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
                 <span style={{ fontSize: '14px' }}>🔒</span>
-                У вас более 10 пользователей в боте. Изменение токена заблокировано для безопасности.
+                У вас более 10 пользователей. Токен заблокирован. (Для смены нужна PRO подписка или новый слот).
               </p>
             )}
           </div>
 
           {/* Payment provider */}
-          <div style={{ opacity: !isPro ? 0.6 : 1, pointerEvents: !isPro ? 'none' : 'auto' }}>
+          <div>
             <label className="text-label" style={{ display: 'block', marginBottom: '8px' }}>Платёжная система</label>
             <div
               style={{
@@ -156,11 +148,31 @@ export const BotSettings = ({ appState, onClose, onSave }: BotSettingsProps) => 
         <div style={{ marginTop: '24px' }}>
           <button
             onClick={handleSave}
-            disabled={!isPro}
             className="btn btn-action"
-            style={{ width: '100%', height: '48px', fontSize: '15px', opacity: !isPro ? 0.5 : 1 }}
+            style={{ width: '100%', height: '48px', fontSize: '15px' }}
           >
             Сохранить изменения
+          </button>
+        </div>
+
+        {/* Опасная зона */}
+        <div style={{ marginTop: '32px', paddingTop: '24px', borderTop: '1px solid var(--color-border)' }}>
+          <h4 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-danger)', marginBottom: '8px' }}>Опасная зона</h4>
+          <p style={{ fontSize: '13px', color: 'var(--color-foreground-secondary)', marginBottom: '16px' }}>
+            Если вы переиспользуете бота для новой воронки, вы можете полностью удалить старую базу пользователей. Это сбросит счетчик юзеров и разблокирует токен.
+          </p>
+          <button
+            onClick={() => {
+              if (window.confirm('Вы уверены, что хотите безвозвратно удалить базу лидов этого бота?')) {
+                if (activeBot) activeBot.usersCount = 0;
+                setToken(token + ' '); setToken(token); // force component render
+                alert('База лидов успешно очищена! Счетчик сброшен.');
+              }
+            }}
+            className="btn"
+            style={{ width: '100%', height: '44px', fontSize: '14px', background: 'var(--color-danger-soft)', color: 'var(--color-danger)', border: '1px solid rgba(255, 59, 48, 0.2)' }}
+          >
+            Очистить базу лидов
           </button>
         </div>
 

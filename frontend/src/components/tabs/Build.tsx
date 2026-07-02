@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, RotateCcw, Image as ImageIcon } from 'lucide-react';
+import { Play, RotateCcw, Image as ImageIcon, ShieldAlert } from 'lucide-react';
 import { FunnelCard } from '../FunnelCard';
 import { TimerPresets } from '../TimerPresets';
 import { DeliverySelector } from '../DeliverySelector';
@@ -35,6 +36,8 @@ export const Build = ({
   // Preview simulation state
   const [previewStep, setPreviewStep] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [, setForceRender] = useState(0);
 
   useEffect(() => {
     if (!isPlaying) return;
@@ -118,9 +121,7 @@ export const Build = ({
     >
       {/* Left: funnel steps */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        {!appState.activeBot && (
-          <BotSetupCard onConnect={onBotConnect} />
-        )}
+        <BotSetupCard appState={appState} onConnect={onBotConnect} />
         
         <div data-tour="tour-funnel-steps" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <FunnelCard stepId="offer" title="Шаг 0 · Оферта" isComplete={false}>
@@ -360,6 +361,15 @@ export const Build = ({
           )}
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
+          {appState.activeBot && (
+            <button
+              onClick={() => setShowConfirm(true)}
+              className="btn btn-secondary"
+              style={{ height: '40px', padding: '0 16px', color: 'var(--color-danger)' }}
+            >
+              Очистить базу
+            </button>
+          )}
           {appState.activeBot && appState.isDirty && (
             <button
               className="btn btn-secondary"
@@ -382,6 +392,63 @@ export const Build = ({
           </button>
         </div>
       </div>
+
+      {createPortal(
+        <AnimatePresence>
+          {showConfirm && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setShowConfirm(false)}
+                style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100000, backdropFilter: 'blur(4px)' }}
+              />
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 10, x: '-50%' }} animate={{ opacity: 1, scale: 1, y: '-50%', x: '-50%' }} exit={{ opacity: 0, scale: 0.95, y: 10, x: '-50%' }}
+                style={{
+                  position: 'fixed', top: '50%', left: '50%', zIndex: 100001,
+                  background: 'var(--color-surface)', width: '90%', maxWidth: '340px',
+                  borderRadius: '20px', padding: '24px', boxShadow: 'var(--shadow-float)'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                  <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'var(--color-danger-soft)', color: 'var(--color-danger)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <ShieldAlert size={20} />
+                  </div>
+                  <h3 style={{ fontSize: '17px', fontWeight: 600, color: 'var(--color-foreground)', margin: 0 }}>Очистить базу?</h3>
+                </div>
+                <p style={{ fontSize: '14px', color: 'var(--color-foreground-secondary)', lineHeight: 1.5, marginBottom: '24px' }}>
+                  Вы уверены, что хотите безвозвратно удалить базу лидов этого бота?
+                  <br/><br/>
+                  <span style={{ color: 'var(--color-danger)', fontSize: '13px', fontWeight: 500 }}>
+                    Полное удаление базы пользователей сбросит счетчик юзеров и разблокирует смену токена.
+                  </span>
+                </p>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button
+                    onClick={() => setShowConfirm(false)}
+                    className="btn btn-secondary"
+                    style={{ flex: 1, height: '44px' }}
+                  >
+                    Отмена
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (appState.activeBot) appState.activeBot.usersCount = 0;
+                      setShowConfirm(false);
+                      setForceRender(prev => prev + 1);
+                    }}
+                    className="btn"
+                    style={{ flex: 1, height: '44px', background: 'var(--color-danger)', color: '#fff', border: 'none' }}
+                  >
+                    Очистить
+                  </button>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
     </motion.div>
   );
 };

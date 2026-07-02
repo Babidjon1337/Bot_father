@@ -358,3 +358,42 @@ body {
   50% { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
 }
+
+.magic-border-container {
+  position: relative;
+  border-radius: var(--radius-xl);
+  padding: 1px; /* border thickness */
+  overflow: hidden;
+  z-index: 1;
+}
+
+.magic-border-container::before {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  z-index: -1;
+  background: conic-gradient(
+    transparent,
+    transparent 60%,
+    var(--color-primary) 80%,
+    var(--color-accent) 100%
+  );
+  animation: border-spin 4s linear infinite;
+}
+
+@keyframes border-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.magic-border-content {
+  background: var(--color-background);
+  border-radius: calc(var(--radius-xl) - 1px);
+  height: 100%;
+  width: 100%;
+  position: relative;
+  z-index: 2;
+}

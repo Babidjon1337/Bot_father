@@ -8,13 +8,14 @@ import { MobileNav } from './components/MobileNav';
 import { Home } from './components/tabs/Home';
 import { Build } from './components/tabs/Build';
 import { Flow } from './components/tabs/Flow';
+import { BotManagement } from './components/tabs/BotManagement';
 import { Profile } from './components/tabs/Profile';
 import { Subscription } from './components/tabs/Subscription';
 
-import { BillingRenew } from './components/sheets/BillingRenew';
 import { CheckoutSheet } from './components/sheets/CheckoutSheet';
+import { BotCreateSheet } from './components/sheets/BotCreateSheet';
 import { BotSwitcher } from './components/sheets/BotSwitcher';
-import { BotSettings } from './components/sheets/BotSettings';
+
 import { Toast } from './components/Toast';
 
 import type { FunnelNode, TabType, AppState, SheetType } from './types';
@@ -26,28 +27,17 @@ export default function App() {
     bots: [],
     subscriptionStatus: 'none',
     subscriptionUntil: null,
+    slotsBought: 0,
     userEmail: '',
     activeSheet: null,
     isDirty: false,
   });
 
-  const [activeTab, setActiveTab] = useState<TabType>('build');
+  const [activeTab, setActiveTab] = useState<TabType>('home');
   const [blocks, setBlocks] = useState<FunnelNode[]>(INITIAL_BLOCKS);
   const [selectedBlockId, setSelectedBlockId] = useState<string>('start');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
-
-  // Smart routing on mount
-  useEffect(() => {
-    if (appState.subscriptionStatus === 'none' && appState.bots.length === 0) {
-      setActiveTab('build');
-    } else if (appState.bots.length === 0) {
-      setActiveTab('build');
-    } else {
-      setActiveTab('home');
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   useEffect(() => {
     const tg = (window as any).Telegram?.WebApp;
@@ -77,6 +67,31 @@ export default function App() {
   const updateBlock = (id: string, field: keyof FunnelNode, value: string) => {
     setBlocks(prev => prev.map(b => (b.id === id ? { ...b, [field]: value } : b)));
     setAppState(prev => ({ ...prev, isDirty: true }));
+  };
+
+  const handleCreateBotClick = () => {
+    const isPro = appState.subscriptionStatus === 'active';
+    const hasSlots = isPro ? appState.bots.length < 10 : appState.bots.length < 1;
+    if (!hasSlots) {
+      setActiveTab('subscription');
+      return;
+    }
+    const newBotId = `b${appState.bots.length + 1}`;
+    const newBot: import('./types').BotConfig = { 
+      id: newBotId, 
+      name: 'Новый Бот', 
+      username: '@new_bot', 
+      status: 'inactive', 
+      usersCount: 0, 
+      isTokenLocked: false, 
+      funnelComplete: false 
+    };
+    setAppState(prev => ({
+      ...prev,
+      activeBot: newBot,
+      bots: [...prev.bots, newBot],
+    }));
+    setActiveTab('build');
   };
 
   return (
@@ -118,7 +133,7 @@ export default function App() {
           >
           <AnimatePresence mode="wait">
             {activeTab === 'home' && (
-              <Home key="home" appState={appState} setActiveTab={setActiveTab} setSheet={setSheet} />
+              <Home key="home" appState={appState} setActiveTab={setActiveTab} setSheet={setSheet} onCreateBot={handleCreateBotClick} />
             )}
             {activeTab === 'build' && (
               <Build
@@ -135,7 +150,7 @@ export default function App() {
                     id: newBotId, 
                     name: 'Новый Бот', 
                     username: '@new_bot', 
-                    status: 'draft', 
+                    status: 'inactive', 
                     usersCount: 0, 
                     isTokenLocked: false, 
                     funnelComplete: false 
@@ -165,18 +180,19 @@ export default function App() {
             {activeTab === 'subscription' && (
               <Subscription 
                 key="subscription" 
+                appState={appState}
                 onPurchaseSuccess={(plan) => {
                   setAppState(prev => {
                     const nextState = { ...prev };
                     if (plan === 'pro') {
                       nextState.subscriptionStatus = 'active';
                       // If there is an active bot and it's a draft, make it active
-                      if (nextState.activeBot && nextState.activeBot.status === 'draft') {
+                      if (nextState.activeBot && nextState.activeBot.status === 'inactive') {
                         nextState.activeBot.status = 'active';
                       }
                       nextState.bots = nextState.bots.map(b => b.id === nextState.activeBot?.id ? { ...b, status: 'active' } : b);
                     } else if (plan === 'basic') {
-                      if (nextState.activeBot && nextState.activeBot.status === 'draft') {
+                      if (nextState.activeBot && nextState.activeBot.status === 'inactive') {
                         nextState.activeBot.status = 'active';
                       }
                       nextState.bots = nextState.bots.map(b => b.id === nextState.activeBot?.id ? { ...b, status: 'active' } : b);
@@ -185,6 +201,28 @@ export default function App() {
                   });
                 }}
                 onGoToBots={() => setActiveTab('home')}
+              />
+            )}
+            {activeTab === 'manage' && (
+              <BotManagement 
+                key="manage" 
+                appState={appState} 
+                onCreateBot={handleCreateBotClick} 
+                onOpenBot={(botId) => {
+                  const bot = appState.bots.find(b => b.id === botId);
+                  if (bot) {
+                    setAppState(prev => ({ ...prev, activeBot: bot }));
+                    setActiveTab('home');
+                  }
+                }} 
+                onEditBot={(botId) => {
+                  const bot = appState.bots.find(b => b.id === botId);
+                  if (bot) {
+                    setAppState(prev => ({ ...prev, activeBot: bot }));
+                    setActiveTab('build');
+                  }
+                }}
+                onGoToSubscription={() => setActiveTab('subscription')}
               />
             )}
           </AnimatePresence>
@@ -196,18 +234,6 @@ export default function App() {
 
       {/* Sheets */}
       <AnimatePresence>
-        {appState.activeSheet === 'billing_renew' && (
-          <BillingRenew
-            key="billing_renew"
-            userEmail={appState.userEmail}
-            onClose={() => setSheet(null)}
-            onSuccess={() => {
-              setSheet(null);
-              setAppState(prev => ({ ...prev, subscriptionStatus: 'active' }));
-              setToastMessage('Подписка успешно продлена!');
-            }}
-          />
-        )}
         {appState.activeSheet === 'checkout' && appState.sheetData?.tariff && (
           <CheckoutSheet
             key="checkout"
@@ -217,6 +243,31 @@ export default function App() {
               setAppState(prev => ({ ...prev, userEmail: email }));
               setSheet(null);
               alert(`Payment initiated for ${appState.sheetData.tariff} with email ${email}`);
+            }}
+          />
+        )}
+        {appState.activeSheet === 'bot_create' && (
+          <BotCreateSheet
+            key="bot_create"
+            onClose={() => setSheet(null)}
+            onCreate={(name, username) => {
+              const newBotId = `b${appState.bots.length + 1}`;
+              const newBot: import('./types').BotConfig = { 
+                id: newBotId, 
+                name, 
+                username: username.startsWith('@') ? username : `@${username}`, 
+                status: 'inactive', 
+                usersCount: 0, 
+                isTokenLocked: false, 
+                funnelComplete: false 
+              };
+              setAppState(prev => ({
+                ...prev,
+                activeBot: newBot,
+                bots: [...prev.bots, newBot],
+              }));
+              setSheet(null);
+              setActiveTab('build');
             }}
           />
         )}
@@ -232,13 +283,42 @@ export default function App() {
               if (bot) setAppState(prev => ({ ...prev, activeBot: bot }));
               setSheet(null);
             }}
+            onToggleStatus={(id, newStatus) => {
+              setAppState(prev => {
+                const isPro = prev.subscriptionStatus === 'active';
+                const nextState = { ...prev };
+                
+                if (!isPro && newStatus === 'active') {
+                  // Если не PRO, отключаем всех остальных ботов
+                  nextState.bots = nextState.bots.map(b => ({
+                    ...b,
+                    status: b.id === id ? 'active' : 'inactive'
+                  }));
+                } else {
+                  // Иначе просто переключаем статус конкретного бота
+                  nextState.bots = nextState.bots.map(b => 
+                    b.id === id ? { ...b, status: newStatus } : b
+                  );
+                }
+
+                // Синхронизируем activeBot, если он затронут
+                if (nextState.activeBot) {
+                  const updatedActiveBot = nextState.bots.find(b => b.id === nextState.activeBot!.id);
+                  if (updatedActiveBot) {
+                    nextState.activeBot = { ...updatedActiveBot };
+                  }
+                }
+                
+                return nextState;
+              });
+            }}
             onAddBot={() => {
               const newBotId = `b${appState.bots.length + 1}`;
               const newBot: import('./types').BotConfig = { 
                 id: newBotId, 
                 name: 'Новый Бот', 
                 username: '@new_bot', 
-                status: 'draft', 
+                status: 'inactive', 
                 usersCount: 0, 
                 isTokenLocked: false, 
                 funnelComplete: false 
@@ -253,13 +333,7 @@ export default function App() {
             }}
           />
         )}
-        {appState.activeSheet === 'bot_settings' && (
-          <BotSettings
-            appState={appState}
-            onClose={() => setSheet(null)}
-            onSave={() => setToastMessage('Настройки бота сохранены')}
-          />
-        )}
+
       </AnimatePresence>
 
       {toastMessage && (
