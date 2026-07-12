@@ -15,12 +15,8 @@ export const FunnelCard = ({ title, isComplete, defaultExpanded = false, childre
 
   return (
     <div
-      className="card"
-      style={{ 
-        padding: 0, 
-        overflow: 'hidden',
-        background: 'var(--color-surface)',
-      }}
+      className="card-saas"
+      style={{ padding: 0, overflow: 'hidden' }}
     >
       <button
         onClick={() => setIsExpanded(!isExpanded)}

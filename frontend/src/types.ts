@@ -26,6 +26,7 @@ export interface BotConfig {
   paymentProvider?: string;
   paymentKeys?: Record<string, string>;
   paymentAmount?: string;
+  offerUrl?: string;
   funnelComplete: boolean;
 }
 
@@ -37,6 +38,6 @@ export interface AppState {
   slotsBought: number;
   userEmail: string;
   activeSheet: SheetType;
-  sheetData?: any;
+  sheetData?: { tariff: 'basic' | 'pro' } | { botId: string };
   isDirty: boolean;
 }

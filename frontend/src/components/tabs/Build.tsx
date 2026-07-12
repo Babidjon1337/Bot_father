@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, RotateCcw, Image as ImageIcon, ShieldAlert } from 'lucide-react';
+import { Play, RotateCcw, Image as ImageIcon, ShieldAlert, Bold, Italic, Strikethrough, Link2 } from 'lucide-react';
+import { EmptyBotState } from '../EmptyBotState';
 import { FunnelCard } from '../FunnelCard';
 import { TimerPresets } from '../TimerPresets';
 import { DeliverySelector } from '../DeliverySelector';
-import { BotSetupCard } from '../BotSetupCard';
 import type { FunnelNode, DeliveryType, AppState } from '../../types';
 
 interface BuildProps {
@@ -14,18 +14,68 @@ interface BuildProps {
   selectedBlockId: string;
   setSelectedBlockId: (id: string) => void;
   updateBlock: (id: string, field: keyof FunnelNode, value: string) => void;
-  onBotConnect: () => void;
   onPublish: () => void;
+  onCreateBot: () => void;
+  onOpenSettings: () => void;
   theme: 'light' | 'dark';
 }
+
+// --- Rich Text Editor ---
+export const RichTextEditor = ({ value, onChange, placeholder }: { value: string, onChange: (v: string) => void, placeholder?: string }) => {
+  const editorRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (editorRef.current && value !== editorRef.current.innerHTML && document.activeElement !== editorRef.current) {
+      editorRef.current.innerHTML = value || '';
+    }
+  }, [value]);
+
+  const handleInput = () => {
+    if (editorRef.current) {
+      onChange(editorRef.current.innerHTML);
+    }
+  };
+
+  const execCmd = (cmd: string, val?: string) => {
+    document.execCommand(cmd, false, val);
+    handleInput();
+    editorRef.current?.focus();
+  };
+
+  return (
+    <div className="flex flex-col border border-[var(--color-border)] rounded-lg overflow-hidden bg-[var(--color-surface)] focus-within:border-[var(--color-primary)] transition-colors">
+      <div className="flex items-center gap-0.5 p-1 bg-[var(--color-surface-2)] border-b border-[var(--color-border)]">
+        <button type="button" onMouseDown={(e) => { e.preventDefault(); execCmd('bold'); }} className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-[var(--color-surface)] text-[var(--color-foreground-secondary)]"><Bold size={13}/></button>
+        <button type="button" onMouseDown={(e) => { e.preventDefault(); execCmd('italic'); }} className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-[var(--color-surface)] text-[var(--color-foreground-secondary)]"><Italic size={13}/></button>
+        <button type="button" onMouseDown={(e) => { e.preventDefault(); execCmd('strikeThrough'); }} className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-[var(--color-surface)] text-[var(--color-foreground-secondary)]"><Strikethrough size={13}/></button>
+        <button type="button" onMouseDown={(e) => { 
+          e.preventDefault();
+          const url = prompt('Введите URL:');
+          if (url) execCmd('createLink', url);
+        }} className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-[var(--color-surface)] text-[var(--color-foreground-secondary)]"><Link2 size={13}/></button>
+      </div>
+      <div
+        ref={editorRef}
+        contentEditable
+        onInput={handleInput}
+        onBlur={handleInput}
+        className="p-3 min-h-[88px] outline-none text-[14px] rich-text-editor"
+        style={{ color: 'var(--color-foreground)' }}
+        data-placeholder={placeholder}
+      />
+    </div>
+  );
+};
+// --- End Editor ---
 
 export const Build = ({ 
   appState, 
   blocks, 
   setSelectedBlockId, 
   updateBlock, 
-  onBotConnect,
   onPublish,
+  onCreateBot,
+  onOpenSettings,
   theme 
 }: BuildProps) => {
   const [deliveryType, setDeliveryType] = useState<DeliveryType>('link');
@@ -59,7 +109,7 @@ export const Build = ({
   };
 
   const MessageBubble = ({ text, button, media }: { text?: string, button?: string, media?: boolean }) => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', maxWidth: '85%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxWidth: '85%' }}>
       <div style={{
         background: 'var(--color-surface)',
         color: 'var(--color-foreground)',
@@ -68,7 +118,7 @@ export const Build = ({
         borderBottomLeftRadius: '4px',
         fontSize: '14px',
         lineHeight: 1.4,
-        boxShadow: 'var(--shadow-card)',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
       }}>
         {media && (
           <div style={{
@@ -88,21 +138,22 @@ export const Build = ({
             </span>
           </div>
         )}
-        {text && <div style={{ padding: media ? '0 8px 8px' : 0 }}>{text}</div>}
+        {text && <div style={{ padding: media ? '0 8px 8px 8px' : '0', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }} dangerouslySetInnerHTML={{ __html: text.replace(/<[^>]*>?/gm, '') }} />}
       </div>
       {button && (
         <div style={{
-          background: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.85)',
+          background: 'rgba(255, 255, 255, 0.1)',
           backdropFilter: 'blur(10px)',
+          WebkitBackdropFilter: 'blur(10px)',
           color: 'var(--color-primary)',
-          padding: '10px 14px',
+          padding: '10px',
           borderRadius: '12px',
           fontSize: '14px',
           fontWeight: 500,
           textAlign: 'center',
           cursor: 'pointer',
-          boxShadow: 'var(--shadow-card)',
-          marginTop: '2px',
+          border: '1px solid rgba(255, 255, 255, 0.05)',
+          boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
         }}>
           {button}
         </div>
@@ -110,128 +161,178 @@ export const Build = ({
     </div>
   );
 
+  const hasMainSettings = !!(appState.activeBot?.token && appState.activeBot?.name);
+
+  if (!appState.activeBot) {
+    return <EmptyBotState onCreateBot={onCreateBot} />;
+  }
+
   return (
+    <div style={{ paddingBottom: '100px' }}>
+      {/* Bot Header (Settings Access) */}
+      <div className="card-saas flex items-center justify-between gap-4 flex-wrap mb-6 px-5 py-4">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{
+            width: '40px',
+            height: '40px',
+            borderRadius: '12px',
+            background: 'var(--color-primary-soft)',
+            color: 'var(--color-primary)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontWeight: 600,
+            fontSize: '18px'
+          }}>
+            {appState.activeBot.name.charAt(0).toUpperCase()}
+          </div>
+          <div>
+            <div style={{ fontWeight: 600, color: 'var(--color-foreground)', fontSize: '15px' }}>
+              {appState.activeBot.name}
+            </div>
+            <div style={{ fontSize: '13px', color: 'var(--color-foreground-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{
+                display: 'inline-block',
+                width: '8px',
+                height: '8px',
+                borderRadius: '50%',
+                background: appState.activeBot.status === 'active' ? 'var(--color-success)' : 'var(--color-warning)'
+              }} />
+              {appState.activeBot.status === 'active' ? 'Активен' : 'Черновик'}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {!appState.activeBot.paymentProvider && (
+            <div style={{
+              background: 'var(--color-warning-soft)',
+              color: 'var(--color-warning)',
+              padding: '6px 12px',
+              borderRadius: '8px',
+              fontSize: '13px',
+              fontWeight: 500,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              cursor: 'pointer'
+            }} onClick={onOpenSettings}>
+              <ShieldAlert size={14} />
+              Касса не подключена
+            </div>
+          )}
+          <button 
+            className="btn-primary-saas" 
+            onClick={onOpenSettings}
+            style={{ fontSize: '14px', height: '36px', padding: '0 16px' }}
+          >
+            ⚙️ Настройки бота
+          </button>
+        </div>
+      </div>
+
     <motion.div
       key="build"
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.18 }}
-      className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6 pb-24"
+      className={`grid grid-cols-1 ${hasMainSettings ? 'lg:grid-cols-[1fr_340px]' : ''} gap-6 pb-24`}
     >
       {/* Left: funnel steps */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        <BotSetupCard appState={appState} onConnect={onBotConnect} />
-        
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: hasMainSettings ? 'none' : '600px', margin: hasMainSettings ? '0' : '0 auto', width: '100%' }}>
         <div data-tour="tour-funnel-steps" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <FunnelCard stepId="offer" title="Шаг 0 · Оферта" isComplete={false}>
-              <label className="text-label" style={{ display: 'block', marginBottom: '8px' }}>Ссылка на договор оферты</label>
-              <input type="url" placeholder="https://..." className="input" />
-            </FunnelCard>
+                <FunnelCard stepId="start" title="Шаг 1 · Старт" isComplete={!!(getBlock('start')?.content)} defaultExpanded>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div onClick={() => setSelectedBlockId('start')}>
+                      <label className="text-label" style={{ display: 'block', marginBottom: '8px' }}>Текст сообщения</label>
+                      <RichTextEditor
+                        value={getBlock('start')?.content || ''}
+                        onChange={(v) => updateBlock('start', 'content', v)}
+                        placeholder="Первое сообщение бота..."
+                      />
+                    </div>
+                    <div>
+                      <label className="text-label" style={{ display: 'block', marginBottom: '8px' }}>Текст кнопки</label>
+                      <input
+                        value={getBlock('start')?.buttonText || ''}
+                        onChange={(e) => updateBlock('start', 'buttonText', e.target.value)}
+                        placeholder="Например: Начать"
+                        className="input w-full"
+                      />
+                    </div>
+                  </div>
+                </FunnelCard>
 
-            <FunnelCard stepId="start" title="Шаг 1 · Старт" isComplete={!!(getBlock('start')?.content)} defaultExpanded>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div>
-                  <label className="text-label" style={{ display: 'block', marginBottom: '8px' }}>Текст сообщения</label>
-                  <textarea
-                    value={getBlock('start')?.content || ''}
-                    onChange={(e) => updateBlock('start', 'content', e.target.value)}
-                    onClick={() => setSelectedBlockId('start')}
-                    placeholder="Первое сообщение бота..."
-                    className="textarea"
-                    style={{ minHeight: '88px' }}
-                  />
-                </div>
-                <div>
-                  <label className="text-label" style={{ display: 'block', marginBottom: '8px' }}>Текст кнопки</label>
-                  <input
-                    value={getBlock('start')?.buttonText || ''}
-                    onChange={(e) => updateBlock('start', 'buttonText', e.target.value)}
-                    placeholder="Например: Начать"
-                    className="input"
-                  />
-                </div>
-              </div>
-            </FunnelCard>
+                <FunnelCard stepId="push1" title="Шаг 2 · Дожим 1" isComplete={!!(getBlock('push1')?.content)}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <TimerPresets
+                      value={getBlock('push1')?.delay || '1ч'}
+                      onChange={(val) => updateBlock('push1', 'delay', val)}
+                      presets={['1ч', '6ч', '12ч', '24ч', '48ч']}
+                    />
+                    <div onClick={() => setSelectedBlockId('push1')}>
+                      <label className="text-label" style={{ display: 'block', marginBottom: '8px' }}>Текст дожима</label>
+                      <RichTextEditor
+                        value={getBlock('push1')?.content || ''}
+                        onChange={(v) => updateBlock('push1', 'content', v)}
+                        placeholder="Напоминание пользователю..."
+                      />
+                    </div>
+                    <div>
+                      <label className="text-label" style={{ display: 'block', marginBottom: '8px' }}>Текст кнопки</label>
+                      <input
+                        value={getBlock('push1')?.buttonText || ''}
+                        onChange={(e) => updateBlock('push1', 'buttonText', e.target.value)}
+                        placeholder="Например: Перейти"
+                        className="input w-full"
+                      />
+                    </div>
+                  </div>
+                </FunnelCard>
 
-            <FunnelCard stepId="push1" title="Шаг 2 · Дожим 1" isComplete={!!(getBlock('push1')?.content)}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <TimerPresets
-                  value={getBlock('push1')?.delay || '1ч'}
-                  onChange={(val) => updateBlock('push1', 'delay', val)}
-                  presets={['1ч', '6ч', '12ч', '24ч', '48ч']}
-                />
-                <div>
-                  <label className="text-label" style={{ display: 'block', marginBottom: '8px' }}>Текст дожима</label>
-                  <textarea
-                    value={getBlock('push1')?.content || ''}
-                    onChange={(e) => updateBlock('push1', 'content', e.target.value)}
-                    onClick={() => setSelectedBlockId('push1')}
-                    placeholder="Напоминание пользователю..."
-                    className="textarea"
-                    style={{ minHeight: '88px' }}
-                  />
-                </div>
-                <div>
-                  <label className="text-label" style={{ display: 'block', marginBottom: '8px' }}>Текст кнопки</label>
-                  <input
-                    value={getBlock('push1')?.buttonText || ''}
-                    onChange={(e) => updateBlock('push1', 'buttonText', e.target.value)}
-                    placeholder="Например: Перейти"
-                    className="input"
-                  />
-                </div>
-              </div>
-            </FunnelCard>
+                <FunnelCard stepId="push2" title="Шаг 3 · Дожим 2" isComplete={!!(getBlock('push2')?.content)}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <TimerPresets
+                      value={getBlock('push2')?.delay || '24ч'}
+                      onChange={(val) => updateBlock('push2', 'delay', val)}
+                      presets={['1ч', '6ч', '12ч', '24ч', '48ч']}
+                    />
+                    <div onClick={() => setSelectedBlockId('push2')}>
+                      <label className="text-label" style={{ display: 'block', marginBottom: '8px' }}>Текст дожима</label>
+                      <RichTextEditor
+                        value={getBlock('push2')?.content || ''}
+                        onChange={(v) => updateBlock('push2', 'content', v)}
+                        placeholder="Последний шанс..."
+                      />
+                    </div>
+                  </div>
+                </FunnelCard>
 
-            <FunnelCard stepId="push2" title="Шаг 3 · Дожим 2" isComplete={!!(getBlock('push2')?.content)}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <TimerPresets
-                  value={getBlock('push2')?.delay || '24ч'}
-                  onChange={(val) => updateBlock('push2', 'delay', val)}
-                  presets={['1ч', '6ч', '12ч', '24ч', '48ч']}
-                />
-                <div>
-                  <label className="text-label" style={{ display: 'block', marginBottom: '8px' }}>Текст дожима</label>
-                  <textarea
-                    value={getBlock('push2')?.content || ''}
-                    onChange={(e) => updateBlock('push2', 'content', e.target.value)}
-                    onClick={() => setSelectedBlockId('push2')}
-                    placeholder="Последний шанс..."
-                    className="textarea"
-                    style={{ minHeight: '88px' }}
-                  />
-                </div>
-              </div>
-            </FunnelCard>
-
-            <FunnelCard stepId="after_payment" title="Шаг 4 · После оплаты" isComplete={false}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <DeliverySelector
-                  value={deliveryType}
-                  onChange={setDeliveryType}
-                  deliveryValue={deliveryValue}
-                  onDeliveryValueChange={setDeliveryValue}
-                />
-                <div>
-                  <label className="text-label" style={{ display: 'block', marginBottom: '8px', marginTop: '4px' }}>Текст сообщения после оплаты</label>
-                  <textarea
-                    value={getBlock('delivery')?.content || ''}
-                    onChange={(e) => updateBlock('delivery', 'content', e.target.value)}
-                    onClick={() => setSelectedBlockId('delivery')}
-                    placeholder="Спасибо за покупку!"
-                    className="textarea"
-                    style={{ minHeight: '88px' }}
-                  />
-                </div>
-              </div>
-            </FunnelCard>
+                <FunnelCard stepId="after_payment" title="Шаг 4 · После оплаты" isComplete={false}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <DeliverySelector
+                      value={deliveryType}
+                      onChange={setDeliveryType}
+                      deliveryValue={deliveryValue}
+                      onDeliveryValueChange={setDeliveryValue}
+                    />
+                    <div onClick={() => setSelectedBlockId('delivery')}>
+                      <label className="text-label" style={{ display: 'block', marginBottom: '8px', marginTop: '4px' }}>Текст сообщения после оплаты</label>
+                      <RichTextEditor
+                        value={getBlock('delivery')?.content || ''}
+                        onChange={(v) => updateBlock('delivery', 'content', v)}
+                        placeholder="Спасибо за покупку!"
+                      />
+                    </div>
+                  </div>
+                </FunnelCard>
         </div>
         <div style={{ height: '80px' }} /> {/* Spacer for fixed bottom bar */}
       </div>
 
       {/* Right: Live Preview (desktop only) */}
-      <div className="hidden lg:block" data-tour="tour-preview">
+        <div className="hidden lg:block" data-tour="tour-preview">
         <div style={{ position: 'sticky', top: '72px' }}>
           <div className="flex items-center justify-between" style={{ marginBottom: '12px', paddingLeft: '4px' }}>
             <span className="text-hint">Предпросмотр воронки</span>
@@ -251,11 +352,13 @@ export const Build = ({
               margin: '0 auto',
               width: '320px',
               height: '620px',
-              background: theme === 'dark' ? '#0F0F0F' : '#E4EAF0', // TG default background tint
-              backgroundImage: 'url("https://www.transparenttextures.com/patterns/cubes.png")', // subtle texture
+              background: theme === 'dark' ? '#0f0f0f' : '#e4eaf0', // TG default background tint
+              backgroundImage: theme === 'dark' 
+                ? 'radial-gradient(circle at 50% 0%, #1a1a24 0%, #0f0f0f 100%)' 
+                : 'radial-gradient(circle at 50% 0%, #f0f4f8 0%, #e4eaf0 100%)',
               borderRadius: '44px',
-              border: `10px solid ${theme === 'dark' ? '#1C1C1E' : '#FFFFFF'}`,
-              boxShadow: 'var(--shadow-float)',
+              border: `10px solid ${theme === 'dark' ? '#18181b' : '#ffffff'}`,
+              boxShadow: theme === 'dark' ? '0 25px 50px -12px rgba(0,0,0,0.5)' : '0 25px 50px -12px rgba(0,0,0,0.15)',
               overflow: 'hidden',
               display: 'flex',
               flexDirection: 'column',
@@ -264,13 +367,14 @@ export const Build = ({
           >
             {/* Header */}
             <div style={{
-              background: theme === 'dark' ? 'rgba(28,28,30,0.9)' : 'rgba(255,255,255,0.9)',
+              background: theme === 'dark' ? 'rgba(24,24,27,0.85)' : 'rgba(255,255,255,0.85)',
               backdropFilter: 'blur(20px)',
-              padding: '12px 16px',
+              WebkitBackdropFilter: 'blur(20px)',
+              padding: '14px 16px',
               display: 'flex',
               alignItems: 'center',
               gap: '12px',
-              borderBottom: '1px solid var(--color-border)',
+              borderBottom: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`,
               zIndex: 10,
             }}>
               <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 600, color: '#fff' }}>B</div>
@@ -328,9 +432,7 @@ export const Build = ({
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Fixed Bottom Action Bar — always visible */}
+      </div>      {/* Fixed Bottom Action Bar — always visible */}
       <div
         className="fixed left-0 right-0 z-40 flex items-center justify-between px-4 py-3 lg:left-[240px] bottom-[calc(env(safe-area-inset-bottom)+64px)] lg:bottom-0"
         style={{
@@ -450,5 +552,6 @@ export const Build = ({
         document.body
       )}
     </motion.div>
+    </div>
   );
 };

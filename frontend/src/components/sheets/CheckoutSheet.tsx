@@ -103,14 +103,14 @@ export function CheckoutSheet({ tariffId, onClose, onSuccess }: CheckoutSheetPro
           </div>
 
           {/* Trust badges */}
-          <div className="bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 rounded-xl p-4 mb-6">
+          <div className="border border-[var(--color-border)] rounded-xl p-4 mb-6" style={{ background: 'var(--color-primary-soft)' }}>
             <div className="flex items-start gap-3">
-              <ShieldCheck className="text-blue-500 shrink-0 mt-0.5" size={20} />
+              <ShieldCheck style={{ color: 'var(--color-primary)', flexShrink: 0, marginTop: '2px' }} size={20} />
               <div>
-                <h4 className="text-[14px] font-bold text-[#111827] dark:text-blue-100 mb-1">
+                <h4 className="text-[14px] font-bold mb-1" style={{ color: 'var(--color-foreground)' }}>
                   Безопасная оплата через ЮKassa
                 </h4>
-                <p className="text-[13px] text-blue-700/80 dark:text-blue-300/80 leading-relaxed">
+                <p className="text-[13px] leading-relaxed" style={{ color: 'var(--color-foreground-secondary)' }}>
                   Мы используем защищенное соединение. Ваши платежные данные обрабатываются на стороне банка и не передаются нам.
                 </p>
               </div>

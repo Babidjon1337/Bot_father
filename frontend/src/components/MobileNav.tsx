@@ -1,4 +1,4 @@
-import { Home, Layers, User } from 'lucide-react';
+import { Home, Layers, User, Crown } from 'lucide-react';
 import type { TabType } from '../types';
 
 interface MobileNavProps {
@@ -6,18 +6,19 @@ interface MobileNavProps {
   setActiveTab: (tab: TabType) => void;
 }
 
-const TABS: { id: TabType; icon: React.FC<any>; label: string; activeColor: string; inactiveColor: string }[] = [
-  { id: 'home',    icon: Home,   label: 'Статистика', activeColor: 'var(--color-primary)', inactiveColor: 'var(--color-primary-soft)' },
-  { id: 'build',   icon: Layers, label: 'Воронка', activeColor: 'var(--color-accent)', inactiveColor: 'var(--color-accent-soft)' },
-  { id: 'profile', icon: User,   label: 'Профиль', activeColor: 'var(--color-success)', inactiveColor: 'var(--color-success-soft)' },
+const TABS: { id: TabType; icon: React.FC<any>; label: string; activeColor: string }[] = [
+  { id: 'home',         icon: Home,   label: 'Главная',   activeColor: 'var(--color-primary)' },
+  { id: 'build',        icon: Layers, label: 'Воронка',   activeColor: 'var(--color-accent)' },
+  { id: 'subscription', icon: Crown,  label: 'Тарифы',    activeColor: 'var(--color-warning)' },
+  { id: 'profile',      icon: User,   label: 'Профиль',   activeColor: 'var(--color-success)' },
 ];
 
 export const MobileNav = ({ activeTab, setActiveTab }: MobileNavProps) => {
   return (
     <nav
-      className="fixed bottom-0 left-0 w-full z-50 lg:hidden"
+      className="fixed bottom-0 left-0 w-full z-50 lg:hidden glass-panel"
+      aria-label="Мобильная навигация"
       style={{
-        background: 'var(--color-surface)',
         boxShadow: 'var(--shadow-nav)',
         paddingBottom: 'calc(env(safe-area-inset-bottom) + 4px)',
       }}
@@ -33,6 +34,8 @@ export const MobileNav = ({ activeTab, setActiveTab }: MobileNavProps) => {
                 if (tg) tg.HapticFeedback.selectionChanged();
                 setActiveTab(tab.id);
               }}
+              aria-label={tab.label}
+              aria-current={isActive ? 'page' : undefined}
               className="flex flex-col items-center justify-center gap-1 flex-1 transition-colors duration-150"
               style={{
                 color: isActive ? tab.activeColor : 'var(--color-foreground-tertiary)',
@@ -44,20 +47,19 @@ export const MobileNav = ({ activeTab, setActiveTab }: MobileNavProps) => {
                 style={{ padding: '0 8px' }}
               >
                 <tab.icon
-                  size={24}
+                  size={22}
                   strokeWidth={isActive ? 2 : 1.75}
                   style={{
-                    color: tab.activeColor,
-                    filter: isActive ? 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))' : 'none',
+                    color: isActive ? tab.activeColor : 'var(--color-foreground-tertiary)',
                     transform: isActive ? 'scale(1.15)' : 'scale(1)',
                     transition: 'transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)'
                   }}
                 />
                 <span
                   style={{
-                    fontSize: '11px',
-                    fontWeight: isActive ? 700 : 600,
-                    color: isActive ? 'var(--color-foreground)' : 'var(--color-foreground-secondary)'
+                    fontSize: '10px',
+                    fontWeight: isActive ? 700 : 500,
+                    color: isActive ? tab.activeColor : 'var(--color-foreground-tertiary)',
                   }}
                 >
                   {tab.label}

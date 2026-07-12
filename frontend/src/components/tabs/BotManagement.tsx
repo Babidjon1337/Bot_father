@@ -1,6 +1,8 @@
-
-import { motion } from 'framer-motion';
-import { Bot, Plus, ChevronRight, Settings } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useAlert } from '../AlertProvider';
+import { Bot, Plus, Settings, Users, Zap, MoreHorizontal, ArrowRight, Activity, Power, Pencil, RefreshCw, Trash2 } from 'lucide-react';
+import { EmptyBotState } from '../EmptyBotState';
 import type { AppState } from '../../types';
 
 interface BotManagementProps {
@@ -8,203 +10,290 @@ interface BotManagementProps {
   onCreateBot: () => void;
   onOpenBot: (botId: string) => void;
   onEditBot: (botId: string) => void;
-  onGoToSubscription: () => void;
+  onEditBotSettings: (botId: string) => void;
+  onToggleBot?: (botId: string, newStatus: 'active' | 'inactive') => void;
+  onDeleteBot?: (botId: string) => void;
+  onClearLeads?: (botId: string) => void;
 }
 
-export const BotManagement = ({ appState, onCreateBot, onOpenBot, onEditBot, onGoToSubscription }: BotManagementProps) => {
-  const { bots, subscriptionStatus } = appState;
-  const isSubscribed = subscriptionStatus === 'active';
+const BOT_GRADIENTS = [
+  { from: '#4F46E5', to: '#818CF8', soft: 'rgba(79,70,229,0.08)', border: 'rgba(79,70,229,0.2)' },
+  { from: '#7C3AED', to: '#A78BFA', soft: 'rgba(124,58,237,0.08)', border: 'rgba(124,58,237,0.2)' },
+  { from: '#0284C7', to: '#38BDF8', soft: 'rgba(2,132,199,0.08)', border: 'rgba(2,132,199,0.2)' },
+  { from: '#16A34A', to: '#4ADE80', soft: 'rgba(22,163,74,0.08)', border: 'rgba(22,163,74,0.2)' },
+  { from: '#DB2777', to: '#F472B6', soft: 'rgba(219,39,119,0.08)', border: 'rgba(219,39,119,0.2)' },
+  { from: '#EA580C', to: '#FB923C', soft: 'rgba(234,88,12,0.08)', border: 'rgba(234,88,12,0.2)' },
+  { from: '#0891B2', to: '#67E8F9', soft: 'rgba(8,145,178,0.08)', border: 'rgba(8,145,178,0.2)' },
+];
+
+export const BotManagement = ({ appState, onCreateBot, onOpenBot, onEditBot, onEditBotSettings, onToggleBot, onDeleteBot, onClearLeads }: BotManagementProps) => {
+  const { bots } = appState;
   const hasBots = bots.length > 0;
+  const activeBots = bots.filter(b => b.status === 'active').length;
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const { showAlert, showConfirm } = useAlert();
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpenMenuId(null);
+      }
+    };
+    if (openMenuId) document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [openMenuId]);
 
   return (
-    <div className="pb-24 max-w-5xl mx-auto px-4 md:px-0">
+    <div className="pb-24 w-full max-w-6xl mx-auto px-4 md:px-6">
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.2 }}
+        transition={{ duration: 0.25 }}
       >
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-[var(--color-foreground)] mb-1">
-              Управление ботами
-            </h1>
-            <div className="text-[13px] text-[var(--color-foreground-secondary)] flex items-center gap-2">
-              Главная <ChevronRight size={14} /> Управление ботами
-            </div>
+        {/* Header — no create button here */}
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-[var(--color-foreground)] mb-1">
+            Управление ботами
+          </h1>
+          <div className="text-[13px] text-[var(--color-foreground-secondary)]">
+            Главная <span className="opacity-40">/</span> Боты
           </div>
-          
-          <button 
-            onClick={onCreateBot}
-            className="py-2.5 px-5 flex items-center gap-2 rounded-xl bg-[var(--color-primary-soft)] text-[var(--color-primary)] hover:bg-[var(--color-primary)]/20 border border-[var(--color-primary)]/20 transition-all font-bold shadow-sm"
-          >
-            <Plus size={18} />
-            Создать бота
-          </button>
         </div>
 
-        {/* State 1: No bots */}
-        {!hasBots && (
-          <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-8 flex items-center justify-center min-h-[300px]">
-            <div className="max-w-md text-center">
-              <div className="w-48 h-48 mx-auto mb-6 relative">
-                <div className="absolute inset-0 bg-blue-500/10 rounded-full blur-2xl" />
-                <img src="/single_bot.png" alt="Bot" className="w-full h-full object-contain relative z-10" />
-              </div>
-              <h2 className="text-xl font-bold text-[var(--color-foreground)] mb-2">
-                У вас пока нет ботов
-              </h2>
-              <p className="text-[14px] text-[var(--color-foreground-secondary)] mb-6">
-                Создайте своего первого бота и начните принимать платежи прямо в Telegram.
-              </p>
-              <button 
-                onClick={onCreateBot}
-                className="btn btn-action py-3 px-6 rounded-xl flex items-center gap-2 mx-auto"
+        {/* Stats bar */}
+        {hasBots && (
+          <div className="grid grid-cols-3 gap-4 mb-8">
+            {[
+              { label: 'Всего ботов', value: bots.length, icon: Bot, color: 'var(--color-primary)' },
+              { label: 'Активных', value: activeBots, icon: Activity, color: 'var(--color-success)' },
+              { label: 'Пользователей', value: bots.reduce((s, b) => s + (b.usersCount || 0), 0), icon: Users, color: 'var(--color-accent)' },
+            ].map((stat, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.06 }}
+                className="card-saas p-4 flex items-center gap-4"
               >
-                <Plus size={18} />
-                Создать первого бота
-              </button>
-            </div>
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                  style={{ background: `${stat.color}18` }}
+                >
+                  <stat.icon size={20} style={{ color: stat.color }} />
+                </div>
+                <div>
+                  <div className="text-[22px] font-bold text-[var(--color-foreground)] leading-none mb-0.5">
+                    {stat.value}
+                  </div>
+                  <div className="text-[12px] text-[var(--color-foreground-secondary)]">{stat.label}</div>
+                </div>
+              </motion.div>
+            ))}
           </div>
         )}
 
-        {/* State 2 & 3: Bot List */}
+        {/* Empty state */}
+        {!hasBots && (
+          <EmptyBotState onCreateBot={onCreateBot} />
+        )}
+
+        {/* Bot cards grid */}
         {hasBots && (
-          <div className="space-y-6">
-            
-            {/* PRO Banner */}
-            {isSubscribed && (
-              <div 
-                onClick={onGoToSubscription}
-                className="group relative bg-gradient-to-r from-[var(--color-primary)]/5 to-[var(--color-accent)]/5 border border-[var(--color-primary)]/20 hover:border-[var(--color-primary)]/40 rounded-2xl p-6 shadow-sm flex flex-col md:flex-row gap-6 md:items-center cursor-pointer transition-all overflow-hidden"
-              >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--color-accent)]/10 rounded-full blur-3xl group-hover:bg-[var(--color-accent)]/20 transition-colors" />
-                
-                <div className="flex-1 relative z-10 border-b md:border-b-0 md:border-r border-[var(--color-primary)]/10 pb-6 md:pb-0 md:pr-6">
-                  <div className="text-[13px] text-[var(--color-primary)] font-medium mb-3 opacity-80">
-                    Использование тарифа PRO
-                  </div>
-                  <div className="flex items-baseline gap-1 mb-2">
-                    <span className="text-2xl font-bold text-[var(--color-foreground)]">{bots.length}</span>
-                    <span className="text-[15px] font-medium text-[var(--color-foreground-secondary)]">из 10 ботов</span>
-                  </div>
-                  <div className="h-2 w-full bg-[var(--color-surface-2)] rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-[var(--color-primary)] rounded-full transition-all" 
-                      style={{ width: `${(bots.length / 10) * 100}%` }}
+          <div>
+            <h3 className="text-[15px] font-bold text-[var(--color-foreground)] mb-4">Ваши боты</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {bots.map((bot, index) => {
+                const g = BOT_GRADIENTS[index % BOT_GRADIENTS.length];
+                const initials = bot.name.substring(0, 2).toUpperCase();
+                const isActive = bot.status === 'active';
+                const isMenuOpen = openMenuId === bot.id;
+
+                return (
+                  <motion.div
+                    key={bot.id}
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.07 }}
+                    className="relative card-saas overflow-visible"
+                  >
+                    {/* Gradient top strip */}
+                    <div
+                      className="h-1 w-full rounded-t-2xl"
+                      style={{ background: `linear-gradient(90deg, ${g.from}, ${g.to})` }}
                     />
-                  </div>
-                </div>
-                
-                <div className="flex-1 relative z-10 border-b md:border-b-0 md:border-r border-[var(--color-primary)]/10 pb-6 md:pb-0 md:pr-6 md:pl-2">
-                  <div className="text-[13px] text-[var(--color-foreground-secondary)] font-medium mb-2">
-                    Следующее списание
-                  </div>
-                  <div className="text-[16px] font-bold text-[var(--color-foreground)]">
-                    25 июля 2026
-                  </div>
-                </div>
 
-                <div className="flex-1 relative z-10 md:pl-2">
-                  <div className="text-[13px] text-[var(--color-foreground-secondary)] font-medium mb-2">
-                    Статус подписки
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[var(--color-success)]/10 text-[var(--color-success)]">
-                        <span className="w-2 h-2 rounded-full bg-[var(--color-success)]" />
-                      </span>
-                      <span className="text-[15px] font-bold text-[var(--color-foreground)]">Активна</span>
-                    </div>
-                    <div className="text-[var(--color-primary)] opacity-0 group-hover:opacity-100 transition-opacity transform translate-x-[-10px] group-hover:translate-x-0 duration-300">
-                      <ChevronRight size={20} />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
+                    <div className="p-5">
+                      {/* Top row: avatar + name + toggle + menu */}
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-[14px] shrink-0 shadow-sm"
+                            style={{ background: `linear-gradient(135deg, ${g.from}, ${g.to})` }}
+                          >
+                            {initials}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <input
+                              type="text"
+                              defaultValue={bot.name}
+                              className="text-[15px] font-bold text-[var(--color-foreground)] leading-tight mb-0.5 bg-transparent border-none outline-none hover:bg-[var(--color-surface-2)] focus:bg-[var(--color-surface-2)] focus:ring-2 focus:ring-[var(--color-primary-soft)] rounded px-1 -ml-1 w-full transition-all truncate"
+                              placeholder="Имя бота"
+                            />
+                            <div className="text-[12px] text-[var(--color-foreground-secondary)] px-1">
+                              @{(bot.username || 'username').replace('@', '')}
+                            </div>
+                          </div>
+                        </div>
 
-            <div>
-              <h3 className="text-[16px] font-bold text-[var(--color-foreground)] mb-4">Ваши боты</h3>
-              
-              <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl overflow-hidden shadow-sm">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse min-w-[700px]">
-                    <thead className="bg-[var(--color-surface-2)] border-b border-[var(--color-border)]">
-                      <tr>
-                        <th className="py-3 px-6 text-[12px] font-semibold text-[var(--color-foreground-secondary)]">Бот</th>
-                        <th className="py-3 px-6 text-[12px] font-semibold text-[var(--color-foreground-secondary)]">Пользователи</th>
-                        <th className="py-3 px-6 text-[12px] font-semibold text-[var(--color-foreground-secondary)]">Платежи</th>
-                        <th className="py-3 px-6 text-[12px] font-semibold text-[var(--color-foreground-secondary)]">Статус</th>
-                        <th className="py-3 px-6 text-[12px] font-semibold text-[var(--color-foreground-secondary)] text-right">Действия</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {bots.map((bot, index) => {
-                        const colors = [
-                          { bg: 'rgba(79, 70, 229, 0.1)', text: '#4F46E5', border: 'rgba(79, 70, 229, 0.2)' },
-                          { bg: 'rgba(22, 163, 74, 0.1)', text: '#16A34A', border: 'rgba(22, 163, 74, 0.2)' },
-                          { bg: 'rgba(234, 88, 12, 0.1)', text: '#EA580C', border: 'rgba(234, 88, 12, 0.2)' },
-                          { bg: 'rgba(219, 39, 119, 0.1)', text: '#DB2777', border: 'rgba(219, 39, 119, 0.2)' },
-                          { bg: 'rgba(124, 58, 237, 0.1)', text: '#7C3AED', border: 'rgba(124, 58, 237, 0.2)' },
-                          { bg: 'rgba(2, 132, 199, 0.1)', text: '#0284C7', border: 'rgba(2, 132, 199, 0.2)' },
-                          { bg: 'rgba(220, 38, 38, 0.1)', text: '#DC2626', border: 'rgba(220, 38, 38, 0.2)' }
-                        ];
-                        const c = colors[index % colors.length];
-                        return (
-                        <tr key={bot.id} className={`border-b border-[var(--color-border)] hover:bg-[var(--color-surface-2)]/50 transition-colors ${index === bots.length - 1 ? 'border-b-0' : ''}`}>
-                          <td className="py-4 px-6">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border" style={{ background: c.bg, borderColor: c.border }}>
-                                <Bot size={20} style={{ color: c.text }} />
-                              </div>
-                              <div>
-                                <div className="flex items-center gap-2 mb-0.5">
-                                  <span className="text-[14px] font-bold text-[var(--color-foreground)]">{bot.name}</span>
-                                </div>
-                                <div className="text-[12px] text-[var(--color-foreground-secondary)]">
-                                  @{bot.username || 'username'}
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="py-4 px-6">
-                            <span className="text-[14px] font-semibold text-[var(--color-foreground)]">{bot.usersCount}</span>
-                          </td>
-                          <td className="py-4 px-6">
-                            <span className="text-[14px] font-semibold text-[var(--color-foreground)]">1 250 ₽</span>
-                          </td>
-                          <td className="py-4 px-6">
-                            <div className="flex items-center gap-2">
-                              <span className="status-dot" style={{ background: bot.status === 'active' ? 'var(--color-success)' : 'var(--color-foreground-tertiary)', width: '6px', height: '6px' }} />
-                              <span className="text-[13px] font-medium text-[var(--color-foreground)]">
-                                {bot.status === 'active' ? 'Активен' : 'Отключен'}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="py-4 px-6 text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <button 
-                                onClick={() => onOpenBot(bot.id)}
-                                className="py-1.5 px-4 rounded-lg text-[13px] font-bold h-auto bg-[var(--color-primary-soft)] text-[var(--color-primary)] hover:bg-[var(--color-primary)]/20 border border-[var(--color-primary)]/20 transition-colors shadow-sm"
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {/* Power toggle */}
+                          <button
+                            onClick={() => onToggleBot?.(bot.id, isActive ? 'inactive' : 'active')}
+                            title={isActive ? 'Отключить бота' : 'Включить бота'}
+                            className="flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all"
+                            style={{
+                              background: isActive ? 'var(--color-success-soft)' : 'var(--color-surface-2)',
+                              color: isActive ? 'var(--color-success)' : 'var(--color-foreground-tertiary)',
+                              border: `1px solid ${isActive ? 'rgba(22,163,74,0.2)' : 'var(--color-border)'}`,
+                              width: '90px',
+                              flexShrink: 0
+                            }}
+                          >
+                            <Power size={11} />
+                            {isActive ? 'Активен' : 'Выкл'}
+                          </button>
+
+                        </div>
+                      </div>
+
+                      {/* Stats row */}
+                      <div
+                        className="flex flex-wrap items-center justify-between gap-2 py-3 px-3 rounded-xl mb-4"
+                        style={{ background: g.soft }}
+                      >
+                        <div className="flex items-center gap-1.5 text-[12px] min-w-0">
+                          <Users size={12} style={{ color: g.from, flexShrink: 0 }} />
+                          <span className="font-semibold text-[var(--color-foreground)]">{bot.usersCount}</span>
+                          <span className="text-[var(--color-foreground-secondary)] truncate">польз.</span>
+                        </div>
+                        <div className="hidden sm:block w-px h-4 bg-[var(--color-border)] opacity-50" />
+                        <div className="flex items-center gap-1.5 text-[12px] min-w-0">
+                          <Zap size={12} style={{ color: g.from, flexShrink: 0 }} />
+                          <span className="font-semibold text-[var(--color-foreground)]">1 250 ₽</span>
+                          <span className="text-[var(--color-foreground-secondary)] truncate">доход</span>
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => onEditBot(bot.id)}
+                          className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-bold text-white transition-all hover:opacity-90 active:scale-95 shadow-sm"
+                          style={{ background: `linear-gradient(135deg, ${g.from}, ${g.to})` }}
+                        >
+                          Открыть
+                          <ArrowRight size={14} />
+                        </button>
+                        
+                        <div className="relative">
+                          <button
+                            onClick={() => setOpenMenuId(isMenuOpen ? null : bot.id)}
+                            title="Меню бота"
+                            className={`w-10 h-10 flex items-center justify-center rounded-xl border transition-colors ${
+                              isMenuOpen 
+                                ? 'border-[var(--color-primary)] bg-[var(--color-primary-soft)] text-[var(--color-primary)]' 
+                                : 'border-[var(--color-border)] hover:bg-[var(--color-surface-2)] text-[var(--color-foreground-secondary)] hover:text-[var(--color-foreground)]'
+                            }`}
+                          >
+                            <Settings size={15} />
+                          </button>
+
+                          <AnimatePresence>
+                            {isMenuOpen && (
+                              <motion.div
+                                initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                                transition={{ duration: 0.15 }}
+                                className="absolute right-0 top-12 w-56 bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xl rounded-xl overflow-hidden z-20"
+                                style={{ transformOrigin: 'top right' }}
                               >
-                                Открыть
-                              </button>
-                              <button 
-                                onClick={() => onEditBot(bot.id)}
-                                title="Редактировать бота"
-                                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--color-surface-2)] text-[var(--color-foreground-secondary)] hover:text-[var(--color-primary)] transition-colors border border-transparent hover:border-[var(--color-border)]"
-                              >
-                                <Settings size={16} />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                                <div className="p-1">
+                                  <button
+                                    onClick={() => {
+                                      setOpenMenuId(null);
+                                      onEditBotSettings(bot.id);
+                                    }}
+                                    className="w-full flex items-center gap-3 px-3 py-2 text-left text-[14px] text-[var(--color-foreground)] hover:bg-[var(--color-surface-2)] rounded-lg transition-colors"
+                                  >
+                                    <Settings size={16} />
+                                    <span>Настройки бота</span>
+                                  </button>
+                                  <div className="h-px w-full bg-[var(--color-border)] my-1" />
+                                  <button
+                                    onClick={() => {
+                                      setOpenMenuId(null);
+                                      showConfirm({
+                                        title: 'Очистить базу лидов?',
+                                        message: 'Эта операция удалит всех пользователей и собранные данные (лиды) из базы этого бота. Воронки и настройки сохранятся. Вы уверены, что хотите сбросить базу?',
+                                        type: 'warning',
+                                        confirmText: 'Да, сбросить',
+                                        cancelText: 'Отмена',
+                                        onConfirm: () => onClearLeads?.(bot.id)
+                                      });
+                                    }}
+                                    className="w-full flex items-center gap-3 px-3 py-2 text-left text-[14px] text-[var(--color-warning)] hover:bg-[var(--color-warning-soft)] rounded-lg transition-colors"
+                                  >
+                                    <RefreshCw size={16} />
+                                    <span>Сбросить базу</span>
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setOpenMenuId(null);
+                                      showConfirm({
+                                        title: 'Удалить бота?',
+                                        message: 'Вы уверены, что хотите полностью удалить этого бота? Все настройки, воронки и база пользователей будут удалены без возможности восстановления.',
+                                        type: 'danger',
+                                        confirmText: 'Удалить навсегда',
+                                        cancelText: 'Отмена',
+                                        onConfirm: () => onDeleteBot?.(bot.id)
+                                      });
+                                    }}
+                                    className="w-full flex items-center gap-3 px-3 py-2 text-left text-[14px] text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)] rounded-lg transition-colors"
+                                  >
+                                    <Trash2 size={16} />
+                                    <span>Удалить бота</span>
+                                  </button>
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+
+              {/* Add bot card */}
+              <motion.button
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: bots.length * 0.07 }}
+                onClick={onCreateBot}
+                className="group bg-[var(--color-surface)] border border-dashed border-[var(--color-border)] rounded-2xl p-5 flex flex-col items-center justify-center min-h-[200px] hover:border-[var(--color-border-strong)] transition-all duration-300 text-center"
+              >
+                <div
+                  className="w-12 h-12 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform"
+                  style={{ background: 'var(--color-primary-soft)' }}
+                >
+                  <Plus size={22} style={{ color: 'var(--color-primary)' }} />
                 </div>
-              </div>
+                <div className="text-[14px] font-bold text-[var(--color-foreground)] mb-1">Добавить бота</div>
+                <div className="text-[12px] text-[var(--color-foreground-secondary)]">Создайте нового бота</div>
+              </motion.button>
             </div>
           </div>
         )}

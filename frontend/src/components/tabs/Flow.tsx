@@ -4,13 +4,16 @@ import ReactFlow, { Background, Controls, Handle, Position } from 'reactflow';
 import type { Edge, NodeProps, Node } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { MessageCircle, Bell, CreditCard, FileBox, FileText } from 'lucide-react';
-import type { FunnelNode } from '../../types';
+import { EmptyBotState } from '../EmptyBotState';
+import type { FunnelNode, AppState } from '../../types';
 
 interface FlowProps {
   blocks: FunnelNode[];
+  appState: AppState;
   setSelectedBlockId: (id: string) => void;
   updateBlock: (id: string, field: keyof FunnelNode, value: string) => void;
   setActiveTab: (tab: string) => void;
+  onCreateBot: () => void;
   theme: 'light' | 'dark';
 }
 
@@ -89,7 +92,11 @@ const CustomNode = ({ data }: NodeProps) => {
   );
 };
 
-export const Flow = ({ blocks, setSelectedBlockId, setActiveTab, theme }: FlowProps) => {
+export const Flow = ({ blocks, appState, setSelectedBlockId, setActiveTab, onCreateBot, theme }: FlowProps) => {
+  if (!appState.activeBot) {
+    return <EmptyBotState onCreateBot={onCreateBot} title="Схема недоступна" description="Чтобы увидеть структуру воронки, необходимо подключить Telegram-бота." />;
+  }
+
   const getBlock = (id: string) => blocks.find(b => b.id === id);
 
   const nodeTypes = useMemo(() => ({
@@ -98,45 +105,38 @@ export const Flow = ({ blocks, setSelectedBlockId, setActiveTab, theme }: FlowPr
 
   const flowNodes: Node[] = useMemo(() => [
     {
-      id: 'offer',
-      type: 'custom',
-      position: { x: 250, y: 50 },
-      data: { title: 'Оферта', subtitle: 'Шаг 0', kind: 'offer', content: 'Ссылка на договор оферты' },
-    },
-    {
       id: 'start',
       type: 'custom',
-      position: { x: 250, y: 250 },
+      position: { x: 250, y: 50 },
       data: { title: 'Первое сообщение', subtitle: 'Мгновенно', kind: 'message', content: getBlock('start')?.content, buttonText: getBlock('start')?.buttonText },
     },
     {
       id: 'push1',
       type: 'custom',
-      position: { x: 250, y: 480 },
+      position: { x: 250, y: 280 },
       data: { title: 'Дожим 1', subtitle: getBlock('push1')?.delay || '1 час', kind: 'reminder', content: getBlock('push1')?.content, buttonText: getBlock('push1')?.buttonText },
     },
     {
       id: 'push2',
       type: 'custom',
-      position: { x: 250, y: 710 },
+      position: { x: 250, y: 510 },
       data: { title: 'Дожим 2', subtitle: getBlock('push2')?.delay || '24 часа', kind: 'reminder', content: getBlock('push2')?.content, buttonText: getBlock('push2')?.buttonText },
     },
     {
       id: 'payment',
       type: 'custom',
-      position: { x: 650, y: 250 },
+      position: { x: 650, y: 50 },
       data: { title: 'Оплата', subtitle: 'Мгновенно', kind: 'payment', content: 'Счет на оплату сформирован.', buttonText: 'Оплатить' },
     },
     {
       id: 'delivery',
       type: 'custom',
-      position: { x: 650, y: 480 },
+      position: { x: 650, y: 280 },
       data: { title: 'Выдача', subtitle: 'После оплаты', kind: 'delivery', content: getBlock('delivery')?.content },
     },
   ], [blocks]);
 
   const flowEdges: Edge[] = useMemo(() => [
-    { id: 'e-offer-start', source: 'offer', sourceHandle: 'bottom', target: 'start', targetHandle: 'top', type: 'smoothstep', style: { stroke: '#94A3B8', strokeWidth: 2 } },
     { id: 'e-start-push1', source: 'start', sourceHandle: 'bottom', target: 'push1', targetHandle: 'top', type: 'smoothstep', animated: true, style: { stroke: '#CBD5E1', strokeWidth: 2 } },
     { id: 'e-push1-push2', source: 'push1', sourceHandle: 'bottom', target: 'push2', targetHandle: 'top', type: 'smoothstep', animated: true, style: { stroke: '#CBD5E1', strokeWidth: 2 } },
     { id: 'e-start-payment', source: 'start', sourceHandle: 'right', target: 'payment', targetHandle: 'left', type: 'smoothstep', style: { stroke: '#3B82F6', strokeWidth: 2 } },

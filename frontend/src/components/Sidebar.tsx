@@ -1,4 +1,4 @@
-import { Home, Layers, User, GitBranch, Crown, Settings, Moon, ChevronDown, Star } from 'lucide-react';
+import { Home, Layers, User, GitBranch, Crown, Settings, Moon, ChevronDown, Star, Bot } from 'lucide-react';
 import { cn } from '../utils';
 import type { TabType, AppState, SheetType } from '../types';
 
@@ -9,6 +9,7 @@ interface SidebarProps {
   setSheet: (sheet: SheetType) => void;
   theme: 'light' | 'dark';
   toggleTheme: () => void;
+  onCreateBot: () => void;
 }
 
 const MAIN_NAV: { id: TabType; icon: React.FC<any>; label: string; activeColor: string }[] = [
@@ -17,7 +18,7 @@ const MAIN_NAV: { id: TabType; icon: React.FC<any>; label: string; activeColor: 
   { id: 'profile', icon: User,      label: 'Профиль', activeColor: 'var(--color-success)'  },
 ];
 
-export const Sidebar = ({ activeTab, setActiveTab, appState, setSheet, theme, toggleTheme }: SidebarProps) => {
+export const Sidebar = ({ activeTab, setActiveTab, appState, setSheet, theme, toggleTheme, onCreateBot }: SidebarProps) => {
   const { activeBot, subscriptionStatus } = appState;
   const isSubscribed = subscriptionStatus === 'active';
 
@@ -50,14 +51,14 @@ export const Sidebar = ({ activeTab, setActiveTab, appState, setSheet, theme, to
         </span>
       </div>
 
-      {/* Bot switcher — only if bot connected */}
-      {activeBot && (
-        <div className="px-3 pt-4">
+      {/* Bot switcher */}
+      <div className="px-3 pt-4">
+        {activeBot ? (
           <button
             onClick={() => setSheet('bot_switcher')}
             className={cn(
               "w-full flex items-center gap-3 px-2 py-2 rounded-[var(--radius-sm)] text-left",
-              "hover:bg-[var(--color-surface-2)] transition-colors"
+              "hover:bg-[var(--color-surface-2)] transition-colors border border-transparent"
             )}
           >
             <div
@@ -86,7 +87,7 @@ export const Sidebar = ({ activeTab, setActiveTab, appState, setSheet, theme, to
                   style={{
                     background: activeBot.status === 'active'
                       ? 'var(--color-success)'
-                      : 'var(--color-foreground-tertiary)',
+                      : 'var(--color-warning)',
                     width: '5px',
                     height: '5px',
                   }}
@@ -96,11 +97,43 @@ export const Sidebar = ({ activeTab, setActiveTab, appState, setSheet, theme, to
             </div>
             <ChevronDown size={14} style={{ color: 'var(--color-foreground-tertiary)', flexShrink: 0 }} />
           </button>
-        </div>
-      )}
+        ) : (
+          <button
+            onClick={onCreateBot}
+            className={cn(
+              "w-full flex items-center gap-3 px-2 py-2 rounded-[var(--radius-sm)] text-left",
+              "hover:bg-[var(--color-surface-2)] transition-colors border border-dashed border-[var(--color-border-strong)]"
+            )}
+          >
+            <div
+              className="w-7 h-7 rounded-md flex items-center justify-center shrink-0"
+              style={{
+                background: 'var(--color-surface-2)',
+                color: 'var(--color-foreground-tertiary)',
+              }}
+            >
+              <Bot size={14} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div
+                className="truncate"
+                style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-foreground-secondary)' }}
+              >
+                Нет активного бота
+              </div>
+              <div
+                className="truncate"
+                style={{ fontSize: '11px', color: 'var(--color-primary)' }}
+              >
+                Создать бота
+              </div>
+            </div>
+          </button>
+        )}
+      </div>
 
       {/* Navigation */}
-      <nav className="flex-1 min-h-0 px-3 pt-3 pb-2 flex flex-col gap-0.5 overflow-y-auto overflow-x-hidden custom-scrollbar">
+      <nav aria-label="Основная навигация" className="flex-1 min-h-0 px-3 pt-3 pb-2 flex flex-col gap-0.5 overflow-y-auto overflow-x-hidden custom-scrollbar">
         <div className="nav-label mb-2">Навигация</div>
 
         {MAIN_NAV.map((item) => {
@@ -199,7 +232,7 @@ export const Sidebar = ({ activeTab, setActiveTab, appState, setSheet, theme, to
                   <span style={{ fontSize: '12px', color: 'var(--color-foreground-secondary)' }}>Активен</span>
                 </div>
                 <button
-                  onClick={() => setActiveTab('subscription')}
+                  onClick={() => setActiveTab('manage')}
                   className="w-full flex items-center justify-center gap-2 py-1.5 rounded-lg border border-[var(--color-border)] hover:bg-[var(--color-surface-2)] transition-colors"
                 >
                   <Settings size={14} className="text-[var(--color-foreground-secondary)]" />

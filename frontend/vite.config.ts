@@ -10,8 +10,13 @@ export default defineConfig({
     tailwindcss(),
   ],
   server: {
-    allowedHosts: true, // Разрешаем любые хосты (для ngrok)
-    host: true,         // Слушать на всех интерфейсах
+    allowedHosts: true,
+    host: true,
+    hmr: {
+      // При работе через ngrok браузер должен подключаться по WSS через порт 443
+      clientPort: 443,
+      protocol: 'wss',
+    },
   },
   resolve: {
     alias: {

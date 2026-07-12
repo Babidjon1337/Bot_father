@@ -1,21 +1,40 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { KeyRound, X } from 'lucide-react';
+import { KeyRound, X, Info } from 'lucide-react';
 import { PAYMENT_PROVIDERS } from '../../constants';
 import type { PaymentProvider, AppState } from '../../types';
+import { useAlert } from '../AlertProvider';
 
 interface BotSettingsProps {
   appState: AppState;
   onClose: () => void;
   onSave: () => void;
+  onDeleteBot?: (id: string) => void;
+  onClearLeads?: (id: string) => void;
 }
 
-export const BotSettings = ({ appState, onClose, onSave }: BotSettingsProps) => {
+const PROVIDER_INFO: Record<PaymentProvider, { label: string, logo: string, color: string }> = {
+  yookassa: { label: 'ЮKassa', logo: '/yookassa.png', color: '#3390ec' },
+  robokassa: { label: 'Robokassa', logo: '/robokassa.png', color: '#af52de' },
+  prodamus: { label: 'Prodamus', logo: '/prodamus.png', color: '#ff9500' }
+};
+
+const PROVIDER_INSTRUCTIONS: Record<PaymentProvider, string> = {
+  yookassa: "Ключи API находятся в кабинете ЮKassa: раздел Интеграция -> Ключи API.",
+  robokassa: "Технические данные (логин и пароли) находятся в настройках магазина Robokassa.",
+  prodamus: "Секретный токен выдается технической поддержкой Продамуса при интеграции."
+};
+
+export const BotSettings = ({ appState, onClose, onSave, onDeleteBot, onClearLeads }: BotSettingsProps) => {
+  const { showAlert, showConfirm } = useAlert();
   const activeBot = appState.activeBot;
   
+  const [name, setName] = useState(activeBot?.name || '');
   const [token, setToken] = useState(activeBot?.token || '');
+  const [offerUrl, setOfferUrl] = useState(activeBot?.offerUrl || '');
   const [provider, setProvider] = useState<PaymentProvider>((activeBot?.paymentProvider as PaymentProvider) || 'yookassa');
   const [keys, setKeys] = useState<Record<string, string>>(activeBot?.paymentKeys || { shopId: '', secretKey: '' });
+  const [price, setPrice] = useState(activeBot?.paymentAmount || '');
 
   const isPro = appState.subscriptionStatus === 'active';
   const hasManyUsers = (activeBot?.usersCount || 0) > 10;
@@ -28,9 +47,12 @@ export const BotSettings = ({ appState, onClose, onSave }: BotSettingsProps) => 
 
   const handleSave = () => {
     if (activeBot) {
+      activeBot.name = name;
       activeBot.token = token;
+      activeBot.offerUrl = offerUrl;
       activeBot.paymentProvider = provider;
       activeBot.paymentKeys = keys;
+      activeBot.paymentAmount = price;
     }
     onSave();
     onClose();
@@ -59,13 +81,25 @@ export const BotSettings = ({ appState, onClose, onSave }: BotSettingsProps) => 
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-          <h3 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--color-foreground)' }}>Настройки бота и платежей</h3>
+          <h3 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--color-foreground)' }}>Главные настройки</h3>
           <button onClick={onClose} style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--color-surface-2)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <X size={15} style={{ color: 'var(--color-foreground-secondary)' }} />
           </button>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxHeight: '60vh', overflowY: 'auto', paddingRight: '4px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxHeight: '60vh', overflowY: 'auto', padding: '8px', margin: '-8px' }}>
+
+          {/* Name */}
+          <div>
+            <label className="text-label" style={{ display: 'block', marginBottom: '8px' }}>Имя бота</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Мой Супер Бот"
+              className="input w-full"
+            />
+          </div>
 
           {/* Token */}
           <div>
@@ -79,7 +113,7 @@ export const BotSettings = ({ appState, onClose, onSave }: BotSettingsProps) => 
                 disabled={!canEditToken}
                 placeholder="Например: 1234567890:AAH_..."
                 className="input"
-                style={{ paddingLeft: '40px', opacity: !canEditToken ? 0.6 : 1, cursor: !canEditToken ? 'not-allowed' : 'text' }}
+                style={{ paddingLeft: '40px', opacity: !canEditToken ? 0.6 : 1, cursor: !canEditToken ? 'not-allowed' : 'text', width: '100%' }}
               />
             </div>
             {isTokenLocked && (
@@ -90,56 +124,98 @@ export const BotSettings = ({ appState, onClose, onSave }: BotSettingsProps) => 
             )}
           </div>
 
+          {/* Offer */}
+          <div>
+            <label className="text-label" style={{ display: 'block', marginBottom: '8px' }}>Ссылка на оферту</label>
+            <input
+              type="text"
+              value={offerUrl}
+              onChange={(e) => setOfferUrl(e.target.value)}
+              placeholder="https://example.com/offer"
+              className="input w-full"
+            />
+          </div>
+
           {/* Payment provider */}
           <div>
-            <label className="text-label" style={{ display: 'block', marginBottom: '8px' }}>Платёжная система</label>
-            <div
-              style={{
-                display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px',
-                padding: '4px', background: 'var(--color-surface-2)', borderRadius: 'var(--radius-sm)',
-                marginBottom: '16px',
-              }}
-            >
-              {(Object.keys(PAYMENT_PROVIDERS) as PaymentProvider[]).map(p => (
-                <button
-                  key={p}
-                  onClick={() => { setProvider(p); setKeys({}); }}
-                  disabled={!canEditPayment}
-                  style={{
-                    height: '34px', borderRadius: '6px', fontSize: '13px',
-                    fontWeight: provider === p ? 500 : 400, border: 'none',
-                    cursor: canEditPayment ? 'pointer' : 'not-allowed',
-                    background: provider === p ? 'var(--color-surface)' : 'transparent',
-                    color: provider === p ? 'var(--color-foreground)' : 'var(--color-foreground-secondary)',
-                    boxShadow: provider === p ? 'var(--shadow-card)' : 'none',
-                    transition: 'all 150ms ease', textTransform: 'capitalize',
-                  }}
-                >
-                  {p}
-                </button>
-              ))}
+            <label className="text-label" style={{ display: 'block', marginBottom: '12px' }}>Платёжная система</label>
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              {(Object.keys(PAYMENT_PROVIDERS) as PaymentProvider[]).map(p => {
+                const info = PROVIDER_INFO[p];
+                const isSelected = provider === p;
+                
+                return (
+                  <button
+                    key={p}
+                    onClick={() => { setProvider(p); setKeys({}); }}
+                    disabled={!canEditPayment}
+                    className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all ${!canEditPayment ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-[var(--color-surface-2)]'}`}
+                    style={{
+                      borderColor: isSelected ? info.color : 'var(--color-border)',
+                      background: isSelected ? `${info.color}10` : 'var(--color-surface)',
+                      boxShadow: isSelected ? `0 0 0 1px ${info.color}20, var(--shadow-card)` : 'none'
+                    }}
+                  >
+                    <img src={info.logo} alt={info.label} className="w-8 h-8 rounded mb-2 object-contain" />
+                    <span style={{ fontSize: '12px', fontWeight: isSelected ? 600 : 500, color: isSelected ? 'var(--color-foreground)' : 'var(--color-foreground-secondary)' }}>
+                      {info.label}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
 
             <AnimatePresence mode="popLayout">
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {PAYMENT_PROVIDERS[provider].map(field => (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+                  className="flex items-start gap-3 p-3 rounded-xl"
+                  style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)' }}
+                >
+                  <Info size={16} className="mt-0.5" style={{ color: PROVIDER_INFO[provider].color, flexShrink: 0 }} />
+                  <p className="text-[13px] leading-relaxed text-[var(--color-foreground-secondary)]">
+                    {PROVIDER_INSTRUCTIONS[provider]}
+                  </p>
+                </motion.div>
+                
+                <div className="space-y-4">
+                  {PAYMENT_PROVIDERS[provider].map(field => (
+                    <motion.div
+                      key={field.key}
+                      initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                      transition={{ duration: 0.15 }}
+                    >
+                      <label className="text-[13px] font-medium text-[var(--color-foreground-secondary)] block mb-1.5">{field.label}</label>
+                      <input
+                        type="text"
+                        placeholder={field.hint}
+                        value={keys[field.key] || ''}
+                        onChange={(e) => setKeys(prev => ({ ...prev, [field.key]: e.target.value }))}
+                        disabled={!canEditPayment}
+                        className="input w-full"
+                        style={{ opacity: !canEditPayment ? 0.6 : 1, cursor: !canEditPayment ? 'not-allowed' : 'text' }}
+                      />
+                    </motion.div>
+                  ))}
+                  
                   <motion.div
-                    key={field.key}
                     initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
                     transition={{ duration: 0.15 }}
                   >
-                    <label className="text-label" style={{ display: 'block', marginBottom: '6px' }}>{field.label}</label>
+                    <label className="text-[13px] font-medium text-[var(--color-foreground-secondary)] block mb-1.5">
+                      Сумма к оплате (в рублях)
+                    </label>
                     <input
-                      type="text"
-                      placeholder={field.hint}
-                      value={keys[field.key] || ''}
-                      onChange={(e) => setKeys(prev => ({ ...prev, [field.key]: e.target.value }))}
+                      type="number"
+                      placeholder="Например: 990"
+                      value={price}
+                      onChange={(e) => setPrice(e.target.value)}
                       disabled={!canEditPayment}
-                      className="input"
+                      className="input w-full"
                       style={{ opacity: !canEditPayment ? 0.6 : 1, cursor: !canEditPayment ? 'not-allowed' : 'text' }}
                     />
                   </motion.div>
-                ))}
+                </div>
               </div>
             </AnimatePresence>
           </div>
@@ -152,44 +228,6 @@ export const BotSettings = ({ appState, onClose, onSave }: BotSettingsProps) => 
             style={{ width: '100%', height: '48px', fontSize: '15px' }}
           >
             Сохранить изменения
-          </button>
-        </div>
-
-        {/* Опасная зона */}
-        <div style={{ marginTop: '32px', paddingTop: '24px', borderTop: '1px solid var(--color-border)' }}>
-          <h4 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--color-danger)', marginBottom: '8px' }}>Опасная зона</h4>
-          <p style={{ fontSize: '13px', color: 'var(--color-foreground-secondary)', marginBottom: '16px' }}>
-            Если вы переиспользуете бота для новой воронки, вы можете полностью удалить старую базу пользователей. Это сбросит счетчик юзеров и разблокирует токен.
-          </p>
-          <button
-            onClick={() => {
-              if (window.confirm('Вы уверены, что хотите безвозвратно удалить базу лидов этого бота?')) {
-                if (activeBot) activeBot.usersCount = 0;
-                setToken(token + ' '); setToken(token); // force component render
-                alert('База лидов успешно очищена! Счетчик сброшен.');
-              }
-            }}
-            className="btn"
-            style={{ width: '100%', height: '44px', fontSize: '14px', background: 'var(--color-danger-soft)', color: 'var(--color-danger)', border: '1px solid rgba(255, 59, 48, 0.2)' }}
-          >
-            Очистить базу лидов
-          </button>
-        </div>
-
-        {/* Дев-кнопки для тестирования логики блокировок */}
-        <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
-          <button
-            onClick={() => {
-              if (activeBot) {
-                activeBot.usersCount = 11;
-                // mock state change
-                setToken(token + ' ');
-                setToken(token);
-              }
-            }}
-            style={{ fontSize: '12px', color: 'var(--color-foreground-secondary)', background: 'none', border: 'none', textDecoration: 'underline', cursor: 'pointer' }}
-          >
-            (Дев) Сделать &gt;10 юзеров
           </button>
         </div>
       </motion.div>

@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, Crown, Calendar, CreditCard, AlertCircle } from 'lucide-react';
 
+import { useAlert } from '../AlertProvider';
+
 interface BillingRenewProps {
   onClose: () => void;
   onSuccess: () => void;
@@ -10,6 +12,7 @@ interface BillingRenewProps {
 export const BillingRenew = ({ onClose, onSuccess }: BillingRenewProps) => {
   const [isPaying, setIsPaying] = useState(false);
   const [showCancel, setShowCancel] = useState(false);
+  const { showAlert } = useAlert();
 
   const handlePay = () => {
     setIsPaying(true);
@@ -57,7 +60,11 @@ export const BillingRenew = ({ onClose, onSuccess }: BillingRenewProps) => {
             <div className="flex flex-col w-full gap-3">
               <button 
                 onClick={() => {
-                  alert('Подписка отменена');
+                  showAlert({
+                    title: 'Успех',
+                    message: 'Подписка успешно отменена',
+                    type: 'success'
+                  });
                   onClose();
                 }}
                 className="w-full py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold transition-colors"

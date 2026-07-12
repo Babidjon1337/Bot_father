@@ -18,6 +18,8 @@ export const Subscription = ({ appState, onPurchaseSuccess, onGoToBots }: Subscr
   const [selectedPlan, setSelectedPlan] = useState<'basic' | 'pro' | null>(null);
   const [email, setEmail] = useState('');
   const [isPaying, setIsPaying] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelledUntil, setCancelledUntil] = useState<string | null>(null); // date string when cancelled but still active
 
   // Confetti effect state
   const [confetti, setConfetti] = useState<{id: number, x: number, color: string, delay: number}[]>([]);
@@ -34,6 +36,14 @@ export const Subscription = ({ appState, onPurchaseSuccess, onGoToBots }: Subscr
       setConfetti(newConfetti);
     }
   }, [step]);
+
+  // Сбрасываем step при изменении статуса подписки
+  useEffect(() => {
+    if (appState.subscriptionStatus !== 'active') {
+      setStep('select');
+      setSelectedPlan(null);
+    }
+  }, [appState.subscriptionStatus]);
 
   const handleSelectPlan = (plan: 'basic' | 'pro') => {
     setSelectedPlan(plan);
@@ -59,7 +69,7 @@ export const Subscription = ({ appState, onPurchaseSuccess, onGoToBots }: Subscr
       price: '2 000 ₽',
       period: 'навсегда',
       sub: '1 бот',
-      icon: <Star className="text-blue-500" size={24} />,
+      icon: <Star style={{ color: 'var(--color-primary)' }} size={24} />,
       image: '/single_bot.png',
       features: [
         { icon: <Bot size={18} />, text: '1 активный бот' },
@@ -72,7 +82,7 @@ export const Subscription = ({ appState, onPurchaseSuccess, onGoToBots }: Subscr
       price: '3 000 ₽',
       period: '/ мес',
       sub: 'до 10 ботов',
-      icon: <Crown className="text-purple-500" size={24} />,
+      icon: <Crown style={{ color: 'var(--color-accent)' }} size={24} />,
       image: '/pro_sub.png',
       features: [
         { icon: <Bot size={18} />, text: 'До 10 активных ботов' },
@@ -135,16 +145,16 @@ export const Subscription = ({ appState, onPurchaseSuccess, onGoToBots }: Subscr
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <div className="mb-8">
             {/* What's included */}
-            <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-6">
+            <div className="card-saas p-6">
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-8 h-8 rounded bg-[var(--color-accent-soft)] text-[var(--color-accent)] flex items-center justify-center">
                   <Crown size={18} />
                 </div>
                 <h3 className="text-[16px] font-bold text-[var(--color-foreground)]">Что включено в PRO</h3>
               </div>
-              <ul className="space-y-4">
+              <ul className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {[
                   'До 10 ботов',
                   'Неограниченные воронки',
@@ -162,91 +172,56 @@ export const Subscription = ({ appState, onPurchaseSuccess, onGoToBots }: Subscr
                 ))}
               </ul>
             </div>
+          </div>
 
-            {/* Bots Usage */}
-            <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-6 flex flex-col">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-8 h-8 rounded bg-[var(--color-accent-soft)] text-[var(--color-accent)] flex items-center justify-center">
-                  <Bot size={18} />
+          {/* Subscription Management */}
+          <div className="card-saas p-6 mb-6">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-8 h-8 rounded bg-[var(--color-accent-soft)] text-[var(--color-accent)] flex items-center justify-center">
+                <Crown size={18} />
+              </div>
+              <h3 className="text-[16px] font-bold text-[var(--color-foreground)]">Управление подпиской</h3>
+            </div>
+
+            {cancelledUntil ? (
+              /* Cancelled state */
+              <div>
+                <div className="flex items-start gap-3 p-4 rounded-xl mb-4" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)' }}>
+                  <XCircle size={18} className="text-[var(--color-danger)] shrink-0 mt-0.5" />
+                  <div>
+                    <div className="text-[14px] font-semibold text-[var(--color-foreground)] mb-0.5">Подписка отменена</div>
+                    <div className="text-[13px] text-[var(--color-foreground-secondary)]">
+                      Остаётся активной до <span className="font-bold text-[var(--color-foreground)]">{cancelledUntil}</span>. После этой даты боты будут остановлены.
+                    </div>
+                  </div>
                 </div>
-                <h3 className="text-[16px] font-bold text-[var(--color-foreground)]">Использование ботов</h3>
+                <button
+                  onClick={() => setCancelledUntil(null)}
+                  className="w-full py-3 px-4 rounded-xl text-[14px] font-bold text-white flex items-center justify-center gap-2 shadow-sm"
+                  style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-accent))' }}
+                >
+                  <RefreshCcw size={16} />
+                  Возобновить подписку
+                </button>
               </div>
-              
-              <div className="flex items-end justify-between mb-2">
-                <span className="text-[15px] font-bold text-[var(--color-foreground)]">{appState.bots.length} из 10</span>
-                <span className="text-[14px] text-[var(--color-foreground-secondary)]">{Math.round((appState.bots.length / 10) * 100)}%</span>
-              </div>
-              <div className="h-2 w-full bg-[var(--color-surface-2)] rounded-full overflow-hidden mb-6">
-                <div 
-                  className="h-full bg-[var(--color-accent)] rounded-full transition-all" 
-                  style={{ width: `${(appState.bots.length / 10) * 100}%` }}
-                />
-              </div>
-
-              <div className="space-y-4 flex-1">
-                {appState.bots.slice(0, 3).map((bot, i) => (
-                  <div key={bot.id} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div 
-                        className="w-8 h-8 rounded-full text-white flex items-center justify-center text-[12px] font-bold"
-                        style={{ backgroundColor: `hsl(${i * 45 + 210}, 80%, 60%)` }}
-                      >
-                        {bot.name.substring(0, 2).toUpperCase()}
-                      </div>
-                      <span className="text-[14px] text-[var(--color-foreground-secondary)]">@{bot.username || 'bot'}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-[var(--color-success)]" />
-                      <span className="text-[13px] text-[var(--color-success)] font-medium">Активен</span>
-                    </div>
-                  </div>
-                ))}
-                {appState.bots.length === 0 && (
-                  <div className="text-[14px] text-[var(--color-foreground-secondary)] text-center py-4">
-                    У вас пока нет ботов
-                  </div>
-                )}
-              </div>
-
-              <button 
-                onClick={onGoToBots}
-                className="w-full mt-6 py-3 border border-[var(--color-border)] rounded-xl text-[14px] font-medium text-[var(--color-foreground)] hover:bg-[var(--color-surface-2)] transition-colors"
+            ) : (
+              /* Active — only cancel option */
+              <button
+                onClick={() => setShowCancelModal(true)}
+                className="w-full py-3 px-4 rounded-xl text-[14px] font-semibold border border-[var(--color-danger)]/30 text-[var(--color-danger)] hover:bg-[var(--color-danger)]/5 transition-colors flex items-center justify-center gap-2"
               >
-                Управление ботами
+                <XCircle size={16} />
+                Отменить подписку
               </button>
-            </div>
+            )}
           </div>
 
-          {/* Payment History */}
-          <div>
-            <h3 className="text-[16px] font-bold text-[var(--color-foreground)] mb-4">История платежей</h3>
-            <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl overflow-hidden">
-              <table className="w-full text-left">
-                <tbody>
-                  {[
-                    { date: '25 июня 2025', plan: 'PRO тариф', status: 'Успешно', amount: '2 990 ₽' },
-                    { date: '25 мая 2025', plan: 'PRO тариф', status: 'Успешно', amount: '2 990 ₽' },
-                    { date: '25 апреля 2025', plan: 'PRO тариф', status: 'Успешно', amount: '2 990 ₽' },
-                  ].map((row, i) => (
-                    <tr key={i} className="border-b border-[var(--color-border)] last:border-0">
-                      <td className="py-4 px-6 text-[14px] text-[var(--color-foreground-secondary)] w-1/4">{row.date}</td>
-                      <td className="py-4 px-6 text-[14px] text-[var(--color-foreground)] font-medium w-1/4">{row.plan}</td>
-                      <td className="py-4 px-6 w-1/4">
-                        <span className="px-2.5 py-1 bg-[var(--color-success-soft)] text-[var(--color-success)] text-[12px] font-medium rounded-md">
-                          {row.status}
-                        </span>
-                      </td>
-                      <td className="py-4 px-6 text-[14px] font-bold text-[var(--color-foreground)] text-right w-1/4">{row.amount}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+
         </motion.div>
+
       ) : (
-      <AnimatePresence mode="wait">
-        {step === 'select' && (
+        <AnimatePresence mode="wait">
+          {step === 'select' && (
           <motion.div
             key="select"
             initial={{ opacity: 0, x: -20 }}
@@ -270,10 +245,10 @@ export const Subscription = ({ appState, onPurchaseSuccess, onGoToBots }: Subscr
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
               {/* Single Bot */}
               <div 
-                className="bg-[var(--color-surface)] border border-blue-100 dark:border-blue-900/30 rounded-3xl p-6 shadow-sm flex flex-col relative overflow-hidden group hover:border-blue-200 dark:hover:border-blue-800 transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/5 cursor-pointer" 
+                className="card-saas p-6 flex flex-col relative overflow-hidden group hover:border-[var(--color-primary)] cursor-pointer" 
                 onClick={() => handleSelectPlan('basic')}
               >
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" style={{ background: 'linear-gradient(135deg, var(--color-primary-soft) 0%, transparent 100%)' }} />
                 <div className="absolute top-0 right-0 w-64 h-64 bg-blue-50/50 dark:bg-blue-900/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
                 
                 <div 
@@ -304,10 +279,10 @@ export const Subscription = ({ appState, onPurchaseSuccess, onGoToBots }: Subscr
 
               {/* PRO Subscription */}
               <div 
-                className="bg-[var(--color-surface)] border border-purple-300 dark:border-purple-700/50 rounded-3xl p-6 shadow-sm flex flex-col relative overflow-hidden group hover:border-purple-400 dark:hover:border-purple-500 transition-all duration-300 hover:shadow-xl hover:shadow-purple-500/10 cursor-pointer" 
+                className="card-saas p-6 flex flex-col relative overflow-hidden group hover:border-[var(--color-accent)] cursor-pointer" 
                 onClick={() => handleSelectPlan('pro')}
               >
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" style={{ background: 'linear-gradient(135deg, var(--color-accent-soft) 0%, transparent 100%)' }} />
                 
                 <div className="absolute top-0 right-0 w-full h-56 opacity-20 pointer-events-none" style={{
                   background: 'radial-gradient(circle at 80% 20%, var(--color-primary) 0%, transparent 50%), radial-gradient(circle at 90% 50%, var(--color-warning) 0%, transparent 40%)'
@@ -436,26 +411,6 @@ export const Subscription = ({ appState, onPurchaseSuccess, onGoToBots }: Subscr
                 </table>
               </div>
             </div>
-
-            {/* Bottom Banner */}
-            <div className="rounded-[16px] p-5 flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm group transition-colors" style={{ background: 'var(--color-accent-soft)', border: '1px solid rgba(191, 90, 242, 0.2)' }}>
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 shadow-sm" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-accent-soft)', color: 'var(--color-accent)' }}>
-                  <Info size={20} strokeWidth={2} />
-                </div>
-                <div>
-                  <h4 className="text-[15px] font-bold mb-0.5" style={{ color: 'var(--color-accent)' }}>
-                    Нужен больше чем 10 ботов?
-                  </h4>
-                  <p className="text-[13px]" style={{ color: 'var(--color-foreground-secondary)' }}>
-                    Напишите нам, и мы предложим индивидуальные условия для вашего проекта.
-                  </p>
-                </div>
-              </div>
-              <button className="btn btn-secondary shrink-0 py-2.5 px-5 whitespace-nowrap w-full md:w-auto border" style={{ borderColor: 'var(--color-accent)', color: 'var(--color-accent)' }}>
-                Связаться с нами
-              </button>
-            </div>
           </motion.div>
         )}
 
@@ -480,7 +435,7 @@ export const Subscription = ({ appState, onPurchaseSuccess, onGoToBots }: Subscr
             </div>
 
             <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-3xl p-6 shadow-sm mb-6 relative overflow-hidden">
-              <div className={`absolute top-0 right-0 w-64 h-64 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none ${selectedPlan === 'pro' ? 'bg-purple-500/10' : 'bg-blue-500/10'}`} />
+              <div className="absolute top-0 right-0 w-64 h-64 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" style={{ background: selectedPlan === 'pro' ? 'var(--color-accent-soft)' : 'var(--color-primary-soft)' }} />
 
               <div className="flex items-center gap-4 p-4 bg-[var(--color-surface-2)] rounded-2xl mb-6 relative z-10 border border-[var(--color-border)]">
                 <div className="w-16 h-16 shrink-0 flex items-center justify-center bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] overflow-hidden shadow-sm p-1">
@@ -638,6 +593,61 @@ export const Subscription = ({ appState, onPurchaseSuccess, onGoToBots }: Subscr
         )}
       </AnimatePresence>
       )}
+
+      {/* Cancel subscription modal */}
+      <AnimatePresence>
+        {showCancelModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}
+            onClick={() => setShowCancelModal(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.92, y: 16 }}
+              transition={{ duration: 0.22 }}
+              className="w-full max-w-md rounded-2xl p-8 shadow-2xl"
+              style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="w-14 h-14 rounded-full mx-auto mb-5 flex items-center justify-center" style={{ background: 'rgba(239,68,68,0.1)' }}>
+                <XCircle size={28} className="text-[var(--color-danger)]" />
+              </div>
+              <h3 className="text-[20px] font-bold text-[var(--color-foreground)] text-center mb-2">Отменить подписку?</h3>
+              <p className="text-[14px] text-[var(--color-foreground-secondary)] text-center mb-2">
+                Подписка останется активной до конца оплаченного периода:
+              </p>
+              <p className="text-[16px] font-bold text-[var(--color-foreground)] text-center mb-6">25 июля 2025</p>
+              <p className="text-[13px] text-[var(--color-foreground-secondary)] text-center mb-8 leading-relaxed">
+                После этой даты боты будут остановлены. Вы сможете возобновить подписку в любой момент.
+              </p>
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={() => {
+                    setCancelledUntil('25 июля 2025');
+                    setShowCancelModal(false);
+                  }}
+                  className="w-full py-3 rounded-xl text-[14px] font-bold text-white flex items-center justify-center gap-2"
+                  style={{ background: '#ef4444' }}
+                >
+                  <XCircle size={16} />
+                  Да, отменить подписку
+                </button>
+                <button
+                  onClick={() => setShowCancelModal(false)}
+                  className="w-full py-3 rounded-xl text-[14px] font-semibold border border-[var(--color-border)] text-[var(--color-foreground)] hover:bg-[var(--color-surface-2)] transition-colors"
+                >
+                  Оставить подписку
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
