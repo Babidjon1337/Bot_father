@@ -3,14 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { KeyRound, X, Info } from 'lucide-react';
 import { PAYMENT_PROVIDERS } from '../../constants';
 import type { PaymentProvider, AppState } from '../../types';
-import { useAlert } from '../AlertProvider';
 
 interface BotSettingsProps {
   appState: AppState;
   onClose: () => void;
   onSave: () => void;
-  onDeleteBot?: (id: string) => void;
-  onClearLeads?: (id: string) => void;
 }
 
 const PROVIDER_INFO: Record<PaymentProvider, { label: string, logo: string, color: string }> = {
@@ -25,8 +22,7 @@ const PROVIDER_INSTRUCTIONS: Record<PaymentProvider, string> = {
   prodamus: "Секретный токен выдается технической поддержкой Продамуса при интеграции."
 };
 
-export const BotSettings = ({ appState, onClose, onSave, onDeleteBot, onClearLeads }: BotSettingsProps) => {
-  const { showAlert, showConfirm } = useAlert();
+export const BotSettings = ({ appState, onClose, onSave }: BotSettingsProps) => {
   const activeBot = appState.activeBot;
   
   const [name, setName] = useState(activeBot?.name || '');

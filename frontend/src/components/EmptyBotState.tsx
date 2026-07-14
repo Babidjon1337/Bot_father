@@ -17,8 +17,9 @@ export const EmptyBotState = ({
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: '40px 20px',
-      minHeight: '400px'
+      // On mobile: use minimal padding so card fills screen properly
+      padding: 'clamp(12px, 3vw, 40px) 16px',
+      minHeight: 'clamp(300px, 60vh, 500px)',
     }}>
       <motion.div
         initial={{ opacity: 0, y: 15 }}
@@ -27,59 +28,47 @@ export const EmptyBotState = ({
         className="card-saas"
         style={{
           width: '100%',
-          maxWidth: '700px',
+          maxWidth: '540px',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '60px 40px',
+          // Adaptive padding: compact on mobile, generous on desktop
+          padding: 'clamp(24px, 5vw, 48px) clamp(20px, 5vw, 32px)',
           position: 'relative',
           overflow: 'hidden',
           border: '1px solid var(--color-border)',
-          borderRadius: '24px',
+          borderRadius: '20px',
           textAlign: 'center',
           background: 'linear-gradient(180deg, var(--color-surface) 0%, var(--color-surface-2) 100%)'
         }}
       >
-        {/* Glow effect */}
-        <div style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: '600px',
-          height: '600px',
-          background: 'radial-gradient(circle, var(--color-primary-soft) 0%, rgba(255,255,255,0) 60%)',
-          zIndex: 0,
-          pointerEvents: 'none',
-        }} />
-
         {/* Badge */}
         <div style={{ 
           position: 'relative', 
           zIndex: 1,
           display: 'inline-flex', 
           alignItems: 'center', 
-          gap: '6px',
-          padding: '6px 14px',
+          gap: '8px',
+          padding: '6px 16px',
           background: 'var(--color-surface)',
           border: '1px solid var(--color-border)',
           borderRadius: '100px',
           color: 'var(--color-primary)',
-          fontSize: '12px',
+          fontSize: '13px',
           fontWeight: 600,
-          marginBottom: '24px',
+          marginBottom: '16px',
           boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
         }}>
-          <LayoutGrid size={14} />
+          <LayoutGrid size={15} />
           <span>Bot Father</span>
         </div>
 
-        {/* Image */}
+        {/* Image — smaller on mobile */}
         <div style={{
           position: 'relative',
           zIndex: 1,
-          marginBottom: '36px',
+          marginBottom: '20px',
           display: 'flex',
           justifyContent: 'center'
         }}>
@@ -90,20 +79,20 @@ export const EmptyBotState = ({
             src="/empty_state_robot.png" 
             alt="New Bot" 
             style={{ 
-              height: '300px', 
-              objectFit: 'contain',
-              filter: 'drop-shadow(0 20px 30px rgba(0,0,0,0.15))'
+              // Adaptive height: smaller on small screens
+              height: 'clamp(140px, 25vh, 240px)',
+              objectFit: 'contain'
             }} 
           />
         </div>
 
         {/* Text Content */}
         <h2 style={{
-          fontSize: '32px',
+          fontSize: 'clamp(18px, 4vw, 24px)',
           fontWeight: 800,
           color: 'var(--color-foreground)',
-          marginBottom: '16px',
-          lineHeight: 1.15,
+          marginBottom: '10px',
+          lineHeight: 1.2,
           letterSpacing: '-0.02em',
           position: 'relative',
           zIndex: 1
@@ -112,11 +101,11 @@ export const EmptyBotState = ({
         </h2>
         
         <p style={{
-          fontSize: '16px',
+          fontSize: 'clamp(13px, 3vw, 14px)',
           color: 'var(--color-foreground-secondary)',
-          lineHeight: 1.6,
-          marginBottom: '40px',
-          maxWidth: '480px',
+          lineHeight: 1.5,
+          marginBottom: '24px',
+          maxWidth: '380px',
           position: 'relative',
           zIndex: 1
         }}>
@@ -128,18 +117,18 @@ export const EmptyBotState = ({
           onClick={onCreateBot}
           className="btn-primary-saas group"
           style={{
-            height: '56px',
-            padding: '0 36px',
-            fontSize: '16px',
+            height: '48px',
+            padding: '0 28px',
+            fontSize: '15px',
             gap: '10px',
-            boxShadow: '0 8px 24px -8px rgba(99, 102, 241, 0.5)',
+            boxShadow: '0 8px 20px -6px rgba(99, 102, 241, 0.4)',
             display: 'inline-flex',
             position: 'relative',
             zIndex: 1,
             borderRadius: '14px'
           }}
         >
-          <Plus size={22} strokeWidth={2.5} />
+          <Plus size={20} strokeWidth={2.5} />
           Создать первого бота
         </button>
       </motion.div>

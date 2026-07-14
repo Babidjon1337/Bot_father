@@ -87,29 +87,49 @@
 }
 
 /* ─────────────────────────────────────────────
-   GLOBAL STYLES
+   TELEGRAM MINI APP — VIEWPORT LOCK
+   Prevents collapse on swipe, respects safe areas
 ───────────────────────────────────────────── */
-html,
-body,
-#root {
+html {
+  /* Lock height to the Telegram WebApp viewport, not the full page */
   height: 100%;
+  height: -webkit-fill-available;
+  overflow: hidden;
+  /* Prevent iOS rubber-band / bounce effect */
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+body {
+  height: 100%;
+  height: -webkit-fill-available;
   overflow: hidden;
   margin: 0;
   padding: 0;
+  position: fixed; /* CRITICAL: fixes the swipe-to-collapse on iOS */
+  width: 100%;
+  /* Safe area for notched/island phones */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+  transition: background-color 0.3s ease, color 0.3s ease;
+  font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+#root {
+  height: 100%;
+  overflow: hidden;
   position: relative;
   background-color: var(--color-background);
 }
 
-/* Subtle Noise Overlay for 21st Century aesthetic */
-body::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 9999;
-  pointer-events: none;
-  opacity: 0.03;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
-}
+
+
 
 /* Premium SaaS Utilities */
 .card-saas {
@@ -196,21 +216,6 @@ body::before {
 }
 .dark .gradient-border-card::before {
   background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0));
-}
-
-body {
-  margin: 0;
-  font-family:
-    "Plus Jakarta Sans",
-    -apple-system,
-    BlinkMacSystemFont,
-    sans-serif;
-  background-color: var(--color-background);
-  color: var(--color-foreground);
-  -webkit-font-smoothing: antialiased;
-  transition:
-    background-color 0.3s ease,
-    color 0.3s ease;
 }
 
 
@@ -505,4 +510,74 @@ body {
   color: var(--color-foreground-tertiary);
   pointer-events: none;
   display: block;
+}
+
+/* ─────────────────────────────────────────────
+   MOBILE / TELEGRAM MINI APP — RESPONSIVE FIXES
+   Phone-first: compact spacing, large touch targets
+───────────────────────────────────────────── */
+
+/* Scrollable content areas — smooth iOS scroll */
+.overflow-y-auto {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+/* On mobile: reduce content horizontal padding */
+@media (max-width: 1023px) {
+  /* Mobile navigation bottom spacing — accounts for safe area */
+  .mobile-padding {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 72px) !important;
+  }
+
+  /* Smaller section titles on phone */
+  .text-screen-title {
+    font-size: 17px;
+  }
+
+  /* Cards: reduce inner padding on phone */
+  .card-saas {
+    border-radius: 14px;
+  }
+
+  /* KPI numbers slightly smaller */
+  .text-kpi {
+    font-size: 22px;
+  }
+
+  /* Make all buttons min 44px tall (Apple HIG touch target) */
+  .btn {
+    height: 44px;
+    min-height: 44px;
+    font-size: 14px;
+  }
+
+  /* Inputs: comfortable touch size */
+  .input,
+  .textarea {
+    font-size: 16px; /* Prevents iOS auto-zoom on focus */
+    padding: 11px 13px;
+  }
+
+  /* Remove hover effects on touch devices (prevents sticky hover state) */
+  .card-saas:hover {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    transform: none;
+  }
+  .btn-primary-saas:hover {
+    transform: none;
+  }
+  .nav-item:hover {
+    background: transparent;
+  }
+}
+
+/* Very small phones (≤ 390px) */
+@media (max-width: 390px) {
+  .text-screen-title {
+    font-size: 15px;
+  }
+  .text-kpi {
+    font-size: 20px;
+  }
 }

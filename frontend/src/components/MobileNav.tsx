@@ -1,4 +1,4 @@
-import { Home, Layers, User, Crown } from 'lucide-react';
+import { Home, Layers, User, Bot } from 'lucide-react';
 import type { TabType } from '../types';
 
 interface MobileNavProps {
@@ -7,23 +7,24 @@ interface MobileNavProps {
 }
 
 const TABS: { id: TabType; icon: React.FC<any>; label: string; activeColor: string }[] = [
-  { id: 'home',         icon: Home,   label: 'Главная',   activeColor: 'var(--color-primary)' },
-  { id: 'build',        icon: Layers, label: 'Воронка',   activeColor: 'var(--color-accent)' },
-  { id: 'subscription', icon: Crown,  label: 'Тарифы',    activeColor: 'var(--color-warning)' },
-  { id: 'profile',      icon: User,   label: 'Профиль',   activeColor: 'var(--color-success)' },
+  { id: 'home',    icon: Home,   label: 'Главная',  activeColor: 'var(--color-primary)' },
+  { id: 'build',   icon: Layers, label: 'Воронка',  activeColor: 'var(--color-accent)' },
+  { id: 'manage',  icon: Bot,    label: 'Боты',     activeColor: 'var(--color-warning)' },
+  { id: 'profile', icon: User,   label: 'Профиль',  activeColor: 'var(--color-success)' },
 ];
 
 export const MobileNav = ({ activeTab, setActiveTab }: MobileNavProps) => {
   return (
     <nav
-      className="fixed bottom-0 left-0 w-full z-50 lg:hidden glass-panel"
+      className="fixed bottom-0 left-0 w-full z-50 lg:hidden"
       aria-label="Мобильная навигация"
       style={{
-        boxShadow: 'var(--shadow-nav)',
-        paddingBottom: 'calc(env(safe-area-inset-bottom) + 4px)',
+        background: 'var(--color-surface)',
+        borderTop: '1px solid var(--color-border)',
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
       }}
     >
-      <div className="flex justify-around items-stretch h-[52px]">
+      <div className="flex justify-around items-stretch h-[56px]">
         {TABS.map((tab) => {
           const isActive = activeTab === tab.id;
           return (

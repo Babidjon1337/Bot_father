@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Bot, KeyRound, ExternalLink, ArrowRight, ArrowLeft, CheckCircle2, Info, CreditCard } from 'lucide-react';
 import { PAYMENT_PROVIDERS } from '../../constants';
@@ -38,6 +38,22 @@ export const BotCreateSheet = ({ onClose, onCreate }: BotCreateSheetProps) => {
   // Step 3: Offer
   const [offerUrl, setOfferUrl] = useState('');
 
+  // TG BackButton wiring
+  useEffect(() => {
+    const tg = (window as any).Telegram?.WebApp;
+    if (!tg?.BackButton) return;
+    tg.BackButton.show();
+    const handler = () => {
+      if (step > 1) setStep((s) => (s - 1) as any);
+      else onClose();
+    };
+    tg.BackButton.onClick(handler);
+    return () => {
+      tg.BackButton.offClick(handler);
+      tg.BackButton.hide();
+    };
+  }, [step, onClose]);
+
   const canGoNext1 = name.trim().length > 0 && token.trim().length > 0 && token.includes(':');
   
   const currentFields = useMemo(() => PAYMENT_PROVIDERS[provider], [provider]);
@@ -61,11 +77,13 @@ export const BotCreateSheet = ({ onClose, onCreate }: BotCreateSheetProps) => {
 
   return (
     <>
+      {/* Dim backdrop — hidden on mobile (fullscreen) */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
+        className="hidden lg:block"
         style={{
           position: 'fixed',
           inset: 0,
@@ -91,15 +109,16 @@ export const BotCreateSheet = ({ onClose, onCreate }: BotCreateSheetProps) => {
           boxShadow: '0 -4px 24px rgba(0,0,0,0.15)',
           display: 'flex',
           flexDirection: 'column',
-          maxHeight: '90vh',
-          height: '100%'
+          // Fullscreen on mobile, sheet on desktop
+          height: 'calc(100dvh - env(safe-area-inset-top, 0px))',
+          maxHeight: '100dvh',
         }}
-        className="max-w-xl mx-auto"
+        className="lg:max-h-[90vh] lg:h-auto max-w-xl mx-auto w-full"
       >
-        {/* Header */}
-        <div className="flex justify-between items-center px-5 py-4 border-b border-[var(--color-border)] shrink-0">
-          <div>
-            <h2 className="text-[17px] font-bold text-[var(--color-foreground)]">Подключение бота</h2>
+        {/* Header - added pt-safe to prevent overlap with TG BackButton if fullscreen */}
+        <div className="flex justify-between items-center px-5 py-4 pt-[max(env(safe-area-inset-top,16px),16px)] lg:pt-4 border-b border-[var(--color-border)] shrink-0">
+          <div className="mt-1">
+            <h2 className="text-[18px] font-bold text-[var(--color-foreground)] leading-none">Подключение бота</h2>
             <div className="flex gap-1.5 mt-2">
               <div className={`h-1 w-8 rounded-full transition-colors ${step >= 1 ? 'bg-[var(--color-primary)]' : 'bg-[var(--color-border)]'}`} />
               <div className={`h-1 w-8 rounded-full transition-colors ${step >= 2 ? 'bg-[var(--color-primary)]' : 'bg-[var(--color-border)]'}`} />
@@ -351,14 +370,14 @@ export const BotCreateSheet = ({ onClose, onCreate }: BotCreateSheetProps) => {
         </div>
 
         {/* Footer */}
-        <div className="p-5 border-t border-[var(--color-border)] flex gap-3 shrink-0">
+        <div className="p-5 border-t border-[var(--color-border)] flex gap-3 shrink-0 bg-[var(--color-surface)]">
           {step > 1 && (
             <button
               onClick={() => setStep((s) => (s - 1) as any)}
-              className="btn bg-[var(--color-surface-2)] text-[var(--color-foreground)] hover:bg-[var(--color-border)] flex-1"
+              className="h-[52px] px-6 rounded-2xl flex items-center justify-center font-semibold transition-all flex-[1]"
+              style={{ background: 'var(--color-surface-2)', color: 'var(--color-foreground)', border: '1px solid var(--color-border)' }}
             >
-              <ArrowLeft size={18} className="mr-2" />
-              Назад
+              <ArrowLeft size={20} />
             </button>
           )}
 
@@ -366,7 +385,8 @@ export const BotCreateSheet = ({ onClose, onCreate }: BotCreateSheetProps) => {
             <button
               onClick={() => setStep((s) => (s + 1) as any)}
               disabled={(step === 1 && !canGoNext1) || (step === 2 && !canGoNext2)}
-              className="btn btn-primary flex-[2]"
+              className="h-[52px] rounded-2xl flex items-center justify-center font-semibold transition-all flex-[2] text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-accent))', boxShadow: '0 8px 16px -6px rgba(99,102,241,0.4)' }}
             >
               Далее
               <ArrowRight size={18} className="ml-2" />
@@ -374,10 +394,11 @@ export const BotCreateSheet = ({ onClose, onCreate }: BotCreateSheetProps) => {
           ) : (
             <button
               onClick={handleCreate}
-              className="btn btn-primary flex-[2]"
+              className="h-[52px] rounded-2xl flex items-center justify-center font-semibold transition-all flex-[2] text-white"
+              style={{ background: 'linear-gradient(135deg, var(--color-success), #10B981)', boxShadow: '0 8px 16px -6px rgba(16,185,129,0.4)' }}
             >
-              Создать и перейти к воронке
-              <ArrowRight size={18} className="ml-2" />
+              Создать бота
+              <CheckCircle2 size={18} className="ml-2" />
             </button>
           )}
         </div>

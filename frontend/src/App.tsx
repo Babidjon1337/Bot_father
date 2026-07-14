@@ -19,7 +19,6 @@ import { BotSwitcher } from './components/sheets/BotSwitcher';
 import { BillingRenew } from './components/sheets/BillingRenew';
 
 import { Toast } from './components/Toast';
-import { OnboardingTour } from './components/OnboardingTour';
 
 import type { FunnelNode, TabType, AppState, SheetType } from './types';
 import { INITIAL_BLOCKS } from './constants';
@@ -42,9 +41,6 @@ export default function App() {
   const [selectedBlockId, setSelectedBlockId] = useState<string>('start');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
-  const [showTour, setShowTour] = useState<boolean>(
-    () => !localStorage.getItem('bf_tour_done')
-  );
 
   useEffect(() => {
     const tg = (window as any).Telegram?.WebApp;
@@ -53,7 +49,50 @@ export default function App() {
       tg.expand();
       tg.enableClosingConfirmation();
       if (tg.requestFullscreen) tg.requestFullscreen();
+      // Official TG API to disable swipe-to-close gesture
+      if (tg.disableVerticalSwipes) tg.disableVerticalSwipes();
+      // Set TG header color to match app background — makes Close/Minimize buttons feel native
+      if (tg.setHeaderColor) tg.setHeaderColor('bg_color');
+      if (tg.setBackgroundColor) tg.setBackgroundColor('bg_color');
+      // Set bottom bar color
+      if (tg.setBottomBarColor) tg.setBottomBarColor('bg_color');
     }
+
+    // Prevent swipe-to-close ONLY when no scrollable parent is being scrolled.
+    // This allows content inside overflow-y-auto containers to scroll normally.
+    let startY = 0;
+    const onTouchStart = (e: TouchEvent) => {
+      startY = e.touches[0]?.clientY ?? 0;
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      const currentY = e.touches[0]?.clientY ?? 0;
+      const swipingDown = currentY > startY;
+
+      // Walk up the DOM to check if any ancestor is scrollable
+      let el = e.target as HTMLElement | null;
+      while (el && el !== document.body) {
+        const overflowY = window.getComputedStyle(el).overflowY;
+        const isScrollable = overflowY === 'auto' || overflowY === 'scroll';
+        if (isScrollable) {
+          // Allow scroll if we're not at the very top (can scroll up more)
+          if (!swipingDown || el.scrollTop > 0) return;
+          break;
+        }
+        el = el.parentElement;
+      }
+
+      // Block only at root level and swiping down (prevents TG collapse)
+      if (swipingDown) {
+        e.preventDefault();
+      }
+    };
+
+    document.addEventListener('touchstart', onTouchStart, { passive: true });
+    document.addEventListener('touchmove', onTouchMove, { passive: false });
+    return () => {
+      document.removeEventListener('touchstart', onTouchStart);
+      document.removeEventListener('touchmove', onTouchMove);
+    };
   }, []);
 
   useEffect(() => {
@@ -115,13 +154,16 @@ export default function App() {
           {/* Mobile Navigation Spacer */}
           <style>{`
             @media (max-width: 1023px) {
-              .mobile-padding { padding-bottom: calc(env(safe-area-inset-bottom) + 60px); }
+              /* Bottom: nav bar height + device safe area */
+              .mobile-padding { padding-bottom: calc(56px + env(safe-area-inset-bottom, 12px)) !important; }
+              /* Top: TG header bar (Close + Minimize buttons) — use env(safe-area-inset-top) + 44px */
+              .tg-header-safe { padding-top: max(54px, calc(env(safe-area-inset-top, 0px) + 44px)) !important; }
               .flow-padding { padding-bottom: 0; }
             }
           `}</style>
 
           <div 
-            className={`flex-1 flex flex-col ${activeTab === 'flow' ? 'flow-padding' : activeTab === 'subscription' ? 'px-2 lg:px-4 py-4 lg:py-8 mobile-padding' : 'p-4 lg:p-8 mobile-padding'}`} 
+            className={`flex-1 flex flex-col ${activeTab === 'flow' ? 'flow-padding' : activeTab === 'subscription' ? 'px-3 lg:px-4 py-4 lg:py-8 mobile-padding' : 'px-4 pt-3 pb-4 lg:p-8 mobile-padding'}`} 
             style={{ maxWidth: activeTab === 'flow' ? '100%' : activeTab === 'subscription' ? '1100px' : '960px', margin: '0 auto', width: '100%' }}
           >
           <AnimatePresence mode="wait">
@@ -155,7 +197,23 @@ export default function App() {
               />
             )}
             {activeTab === 'profile' && (
-              <Profile key="profile" appState={appState} setSheet={setSheet} setActiveTab={setActiveTab} theme={theme} toggleTheme={toggleTheme} />
+              <Profile key="profile" appState={appState} setActiveTab={setActiveTab} theme={theme} toggleTheme={toggleTheme}
+                onPurchaseSuccess={(plan) => {
+                  setAppState(prev => {
+                    const nextState = { ...prev };
+                    if (plan === 'pro') {
+                      nextState.subscriptionStatus = 'active';
+                      if (nextState.activeBot && nextState.activeBot.status === 'inactive') nextState.activeBot.status = 'active';
+                      nextState.bots = nextState.bots.map(b => b.id === nextState.activeBot?.id ? { ...b, status: 'active' } : b);
+                    } else if (plan === 'basic') {
+                      nextState.slotsBought = (nextState.slotsBought || 0) + 1;
+                      if (nextState.activeBot && nextState.activeBot.status === 'inactive') nextState.activeBot.status = 'active';
+                      nextState.bots = nextState.bots.map(b => b.id === nextState.activeBot?.id ? { ...b, status: 'active' } : b);
+                    }
+                    return nextState;
+                  });
+                }}
+              />
             )}
             {activeTab === 'subscription' && (
               <Subscription 
@@ -172,6 +230,7 @@ export default function App() {
                       }
                       nextState.bots = nextState.bots.map(b => b.id === nextState.activeBot?.id ? { ...b, status: 'active' } : b);
                     } else if (plan === 'basic') {
+                      nextState.slotsBought = (nextState.slotsBought || 0) + 1;
                       if (nextState.activeBot && nextState.activeBot.status === 'inactive') {
                         nextState.activeBot.status = 'active';
                       }
@@ -251,24 +310,6 @@ export default function App() {
             onClose={() => setSheet(null)}
             onSave={() => {
               setAppState(prev => ({ ...prev }));
-            }}
-            onDeleteBot={(botId) => {
-              setAppState(prev => ({
-                ...prev,
-                bots: prev.bots.filter(b => b.id !== botId),
-                activeBot: prev.activeBot?.id === botId ? null : prev.activeBot,
-              }));
-              setSheet(null);
-            }}
-            onClearLeads={(botId) => {
-              setAppState(prev => {
-                const updatedBots = prev.bots.map(b => b.id === botId ? { ...b, usersCount: 0 } : b);
-                return {
-                  ...prev,
-                  bots: updatedBots,
-                  activeBot: prev.activeBot?.id === botId ? { ...prev.activeBot, usersCount: 0 } : prev.activeBot
-                };
-              });
             }}
           />
         )}
@@ -376,14 +417,6 @@ export default function App() {
         <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
       )}
 
-      {showTour && appState.bots.length === 0 && (
-        <OnboardingTour
-          onComplete={() => {
-            setShowTour(false);
-            localStorage.setItem('bf_tour_done', '1');
-          }}
-        />
-      )}
     </div>
   );
 }
