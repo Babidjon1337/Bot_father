@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { AnimatePresence } from 'framer-motion';
 
 import { Sidebar } from './components/Sidebar';
@@ -20,27 +20,22 @@ import { BillingRenew } from './components/sheets/BillingRenew';
 
 import { Toast } from './components/Toast';
 
-import type { FunnelNode, TabType, AppState, SheetType } from './types';
-import { INITIAL_BLOCKS } from './constants';
 import { createBot } from './utils';
+import { useAppState } from './providers/AppStateProvider';
 
 export default function App() {
-  const [appState, setAppState] = useState<AppState>({
-    activeBot: null,
-    bots: [],
-    subscriptionStatus: 'none',
-    subscriptionUntil: null,
-    slotsBought: 0,
-    userEmail: '',
-    activeSheet: null,
-    isDirty: false,
-  });
-
-  const [activeTab, setActiveTab] = useState<TabType>('home');
-  const [blocks, setBlocks] = useState<FunnelNode[]>(INITIAL_BLOCKS);
-  const [selectedBlockId, setSelectedBlockId] = useState<string>('start');
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const {
+    appState,
+    setAppState,
+    activeTab,
+    setActiveTab,
+    toastMessage,
+    setToastMessage,
+    theme,
+    toggleTheme,
+    setSheet,
+    handleCreateBotClick,
+  } = useAppState();
 
   useEffect(() => {
     const tg = (window as any).Telegram?.WebApp;
@@ -51,11 +46,11 @@ export default function App() {
       if (tg.requestFullscreen) tg.requestFullscreen();
       // Official TG API to disable swipe-to-close gesture
       if (tg.disableVerticalSwipes) tg.disableVerticalSwipes();
-      // Set TG header color to match app background — makes Close/Minimize buttons feel native
-      if (tg.setHeaderColor) tg.setHeaderColor('bg_color');
-      if (tg.setBackgroundColor) tg.setBackgroundColor('bg_color');
-      // Set bottom bar color
-      if (tg.setBottomBarColor) tg.setBottomBarColor('bg_color');
+      // Set TG colors to match our exact theme to prevent black lines/bars at the bottom
+      const bgColor = theme === 'dark' ? '#09090b' : '#ffffff';
+      if (tg.setHeaderColor) tg.setHeaderColor(bgColor);
+      if (tg.setBackgroundColor) tg.setBackgroundColor(bgColor);
+      if (tg.setBottomBarColor) tg.setBottomBarColor(bgColor);
     }
 
     // Prevent swipe-to-close ONLY when no scrollable parent is being scrolled.
@@ -94,36 +89,6 @@ export default function App() {
       document.removeEventListener('touchmove', onTouchMove);
     };
   }, []);
-
-  useEffect(() => {
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [theme]);
-
-  const setSheet = (sheet: SheetType, data?: any) =>
-    setAppState(prev => ({ ...prev, activeSheet: sheet, sheetData: data }));
-
-  const toggleTheme = () => {
-    setTheme(prev => prev === 'light' ? 'dark' : 'light');
-  };
-
-  const updateBlock = (id: string, field: keyof FunnelNode, value: string) => {
-    setBlocks(prev => prev.map(b => (b.id === id ? { ...b, [field]: value } : b)));
-    setAppState(prev => ({ ...prev, isDirty: true }));
-  };
-
-  const handleCreateBotClick = () => {
-    const isPro = appState.subscriptionStatus === 'active';
-    const hasSlots = isPro ? appState.bots.length < 10 : appState.bots.length < 1;
-    if (!hasSlots) {
-      setActiveTab('subscription');
-      return;
-    }
-    setSheet('bot_create');
-  };
 
   return (
     <div
@@ -164,135 +129,26 @@ export default function App() {
 
           <div 
             className={`flex-1 flex flex-col ${activeTab === 'flow' ? 'flow-padding' : activeTab === 'subscription' ? 'px-3 lg:px-4 py-4 lg:py-8 mobile-padding' : 'px-4 pt-3 pb-4 lg:p-8 mobile-padding'}`} 
-            style={{ maxWidth: activeTab === 'flow' ? '100%' : activeTab === 'subscription' ? '1100px' : '960px', margin: '0 auto', width: '100%' }}
+            style={{ maxWidth: activeTab === 'flow' ? '100%' : '900px', margin: '0 auto', width: '100%' }}
           >
           <AnimatePresence mode="wait">
             {activeTab === 'home' && (
-              <Home key="home" appState={appState} setActiveTab={setActiveTab} setSheet={setSheet} onCreateBot={handleCreateBotClick} />
+              <Home key="home" />
             )}
             {activeTab === 'build' && (
-              <Build
-                key="build"
-                theme={theme}
-                appState={appState}
-                blocks={blocks}
-                selectedBlockId={selectedBlockId}
-                setSelectedBlockId={setSelectedBlockId}
-                updateBlock={updateBlock}
-                onPublish={() => setActiveTab('subscription')}
-                onCreateBot={handleCreateBotClick}
-                onOpenSettings={() => setSheet('bot_settings')}
-              />
+              <Build key="build" />
             )}
             {activeTab === 'flow' && (
-              <Flow
-                key="flow"
-                theme={theme}
-                blocks={blocks}
-                appState={appState}
-                setSelectedBlockId={setSelectedBlockId}
-                updateBlock={updateBlock}
-                setActiveTab={setActiveTab as any}
-                onCreateBot={handleCreateBotClick}
-              />
+              <Flow key="flow" />
             )}
             {activeTab === 'profile' && (
-              <Profile key="profile" appState={appState} setActiveTab={setActiveTab} theme={theme} toggleTheme={toggleTheme}
-                onPurchaseSuccess={(plan) => {
-                  setAppState(prev => {
-                    const nextState = { ...prev };
-                    if (plan === 'pro') {
-                      nextState.subscriptionStatus = 'active';
-                      if (nextState.activeBot && nextState.activeBot.status === 'inactive') nextState.activeBot.status = 'active';
-                      nextState.bots = nextState.bots.map(b => b.id === nextState.activeBot?.id ? { ...b, status: 'active' } : b);
-                    } else if (plan === 'basic') {
-                      nextState.slotsBought = (nextState.slotsBought || 0) + 1;
-                      if (nextState.activeBot && nextState.activeBot.status === 'inactive') nextState.activeBot.status = 'active';
-                      nextState.bots = nextState.bots.map(b => b.id === nextState.activeBot?.id ? { ...b, status: 'active' } : b);
-                    }
-                    return nextState;
-                  });
-                }}
-              />
+              <Profile key="profile" />
             )}
             {activeTab === 'subscription' && (
-              <Subscription 
-                key="subscription" 
-                appState={appState}
-                onPurchaseSuccess={(plan) => {
-                  setAppState(prev => {
-                    const nextState = { ...prev };
-                    if (plan === 'pro') {
-                      nextState.subscriptionStatus = 'active';
-                      // If there is an active bot and it's a draft, make it active
-                      if (nextState.activeBot && nextState.activeBot.status === 'inactive') {
-                        nextState.activeBot.status = 'active';
-                      }
-                      nextState.bots = nextState.bots.map(b => b.id === nextState.activeBot?.id ? { ...b, status: 'active' } : b);
-                    } else if (plan === 'basic') {
-                      nextState.slotsBought = (nextState.slotsBought || 0) + 1;
-                      if (nextState.activeBot && nextState.activeBot.status === 'inactive') {
-                        nextState.activeBot.status = 'active';
-                      }
-                      nextState.bots = nextState.bots.map(b => b.id === nextState.activeBot?.id ? { ...b, status: 'active' } : b);
-                    }
-                    return nextState;
-                  });
-                }}
-                onGoToBots={() => setActiveTab('home')}
-              />
+              <Subscription key="subscription" />
             )}
             {activeTab === 'manage' && (
-              <BotManagement 
-                key="manage" 
-                appState={appState} 
-                onCreateBot={handleCreateBotClick} 
-                onOpenBot={(botId) => {
-                  const bot = appState.bots.find(b => b.id === botId);
-                  if (bot) {
-                    setAppState(prev => ({ ...prev, activeBot: bot }));
-                    setActiveTab('home');
-                  }
-                }} 
-                onEditBot={(botId) => {
-                  const bot = appState.bots.find(b => b.id === botId);
-                  if (bot) {
-                    setAppState(prev => ({ ...prev, activeBot: bot }));
-                    setActiveTab('build');
-                  }
-                }}
-                onEditBotSettings={(botId) => {
-                  const bot = appState.bots.find(b => b.id === botId);
-                  if (bot) {
-                    setAppState(prev => ({ ...prev, activeBot: bot }));
-                    setSheet('bot_settings');
-                  }
-                }}
-                onToggleBot={(botId, newStatus) => {
-                  setAppState(prev => ({
-                    ...prev,
-                    bots: prev.bots.map(b => b.id === botId ? { ...b, status: newStatus } : b),
-                    activeBot: prev.activeBot?.id === botId ? { ...prev.activeBot, status: newStatus } : prev.activeBot,
-                  }));
-                }}
-                onDeleteBot={(botId) => {
-                  setAppState(prev => ({
-                    ...prev,
-                    bots: prev.bots.filter(b => b.id !== botId),
-                    activeBot: prev.activeBot?.id === botId ? null : prev.activeBot,
-                  }));
-                }}
-                onClearLeads={(botId) => {
-                  setAppState(prev => {
-                    const updatedBots = prev.bots.map(b => b.id === botId ? { ...b, usersCount: 0 } : b);
-                    return {
-                      ...prev,
-                      bots: updatedBots,
-                      activeBot: prev.activeBot?.id === botId ? { ...prev.activeBot, usersCount: 0 } : prev.activeBot
-                    };
-                  });
-                }}
-              />
+              <BotManagement key="manage" />
             )}
           </AnimatePresence>
         </div>
@@ -364,6 +220,7 @@ export default function App() {
             activeBotId={appState.activeBot?.id}
             subscriptionStatus={appState.subscriptionStatus}
             onClose={() => setSheet(null)}
+            onAddBot={handleCreateBotClick}
             onSelect={(id) => {
               const bot = appState.bots.find(b => b.id === id);
               if (bot) setAppState(prev => ({ ...prev, activeBot: bot }));
@@ -397,16 +254,6 @@ export default function App() {
                 
                 return nextState;
               });
-            }}
-            onAddBot={() => {
-              const newBot = createBot(appState.bots.length);
-              setAppState(prev => ({
-                ...prev,
-                activeBot: newBot,
-                bots: [...prev.bots, newBot],
-              }));
-              setSheet(null);
-              setActiveTab('build');
             }}
           />
         )}

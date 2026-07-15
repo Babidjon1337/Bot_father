@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Bot, KeyRound, ExternalLink, ArrowRight, ArrowLeft, CheckCircle2, Info, CreditCard } from 'lucide-react';
+import { X, Bot, KeyRound, ExternalLink, ArrowRight, ArrowLeft, CheckCircle2, Info, CreditCard, AlertTriangle } from 'lucide-react';
 import { PAYMENT_PROVIDERS } from '../../constants';
 import type { PaymentProvider, BotConfig } from '../../types';
 
@@ -54,6 +54,8 @@ export const BotCreateSheet = ({ onClose, onCreate }: BotCreateSheetProps) => {
     };
   }, [step, onClose]);
 
+
+
   const canGoNext1 = name.trim().length > 0 && token.trim().length > 0 && token.includes(':');
   
   const currentFields = useMemo(() => PAYMENT_PROVIDERS[provider], [provider]);
@@ -68,7 +70,7 @@ export const BotCreateSheet = ({ onClose, onCreate }: BotCreateSheetProps) => {
       name: name.trim(),
       username: username.trim() || 'username',
       token: token.trim(),
-      paymentProvider: provider,
+      paymentProvider: skipPayment ? undefined : provider,
       paymentKeys: skipPayment ? {} : keys,
       paymentAmount: skipPayment ? '' : price,
       offerUrl: offerUrl.trim(),
@@ -77,72 +79,52 @@ export const BotCreateSheet = ({ onClose, onCreate }: BotCreateSheetProps) => {
 
   return (
     <>
-      {/* Dim backdrop — hidden on mobile (fullscreen) */}
+      {/* Dim backdrop */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
-        className="hidden lg:block"
-        style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0, 0, 0, 0.4)',
-          backdropFilter: 'blur(4px)',
-          zIndex: 40,
-        }}
+        className="fixed inset-0 bg-black/40 backdrop-blur-md z-[100]"
       />
-      <motion.div
-        initial={{ y: '100%' }}
-        animate={{ y: 0 }}
-        exit={{ y: '100%' }}
-        transition={{ type: 'spring', damping: 28, stiffness: 240 }}
-        style={{
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          background: 'var(--color-surface)',
-          borderTopLeftRadius: '24px',
-          borderTopRightRadius: '24px',
-          zIndex: 50,
-          boxShadow: '0 -4px 24px rgba(0,0,0,0.15)',
-          display: 'flex',
-          flexDirection: 'column',
-          // Fullscreen on mobile, sheet on desktop
-          height: 'calc(100dvh - env(safe-area-inset-top, 0px))',
-          maxHeight: '100dvh',
-        }}
-        className="lg:max-h-[90vh] lg:h-auto max-w-xl mx-auto w-full"
-      >
-        {/* Header - added pt-safe to prevent overlap with TG BackButton if fullscreen */}
-        <div className="flex justify-between items-center px-5 py-4 pt-[max(env(safe-area-inset-top,16px),16px)] lg:pt-4 border-b border-[var(--color-border)] shrink-0">
-          <div className="mt-1">
-            <h2 className="text-[18px] font-bold text-[var(--color-foreground)] leading-none">Подключение бота</h2>
-            <div className="flex gap-1.5 mt-2">
-              <div className={`h-1 w-8 rounded-full transition-colors ${step >= 1 ? 'bg-[var(--color-primary)]' : 'bg-[var(--color-border)]'}`} />
-              <div className={`h-1 w-8 rounded-full transition-colors ${step >= 2 ? 'bg-[var(--color-primary)]' : 'bg-[var(--color-border)]'}`} />
-              <div className={`h-1 w-8 rounded-full transition-colors ${step >= 3 ? 'bg-[var(--color-primary)]' : 'bg-[var(--color-border)]'}`} />
+      
+      {/* Centering wrapper */}
+      <div className="fixed inset-0 z-[101] flex flex-col justify-end lg:justify-center items-center pointer-events-none p-0 lg:p-4">
+        <motion.div
+          initial={{ y: '100%', opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: '100%', opacity: 0 }}
+          transition={{ type: 'spring', damping: 30, stiffness: 200 }}
+          className="w-full h-full lg:h-auto lg:max-w-[500px] bg-[var(--color-surface)] lg:rounded-[32px] shadow-2xl pointer-events-auto flex flex-col border border-transparent lg:border-[var(--color-border)] overflow-hidden"
+        >
+          {/* Header */}
+          <div className="flex flex-col items-center justify-center px-6 py-4 border-b border-[var(--color-border)] shrink-0 bg-[var(--color-surface)] relative z-10 gap-1.5">
+            <h2 className="text-[18px] md:text-[20px] font-bold text-[var(--color-foreground)] tracking-tight">Создание бота</h2>
+            <div className="text-[12px] font-bold text-[var(--color-primary)] bg-[var(--color-primary-soft)] px-2.5 py-0.5 rounded-full">
+              Шаг {step} из 3
             </div>
+            {/* Desktop Close Button (hidden on mobile) */}
+            <motion.button 
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={onClose}
+              className="absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8 hidden lg:flex items-center justify-center rounded-full hover:bg-[var(--color-surface-2)] transition-colors text-[var(--color-foreground-secondary)] hover:text-[var(--color-foreground)]"
+            >
+              <X size={18} />
+            </motion.button>
           </div>
-          <button 
-            onClick={onClose} 
-            className="w-8 h-8 rounded-full bg-[var(--color-surface-2)] flex items-center justify-center text-[var(--color-foreground-secondary)] hover:bg-[var(--color-border)] transition-colors"
-          >
-            <X size={18} />
-          </button>
-        </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto px-5 py-6">
-          <AnimatePresence mode="wait">
+          {/* Content Container */}
+          <div className="overflow-y-auto flex-1 relative bg-[var(--color-surface)] hide-scrollbar">
+            <div className="p-5 md:p-8 pb-10 min-h-full flex flex-col justify-center">
+              <AnimatePresence mode="popLayout" initial={false}>
             {step === 1 && (
               <motion.div
                 key="step1"
-                initial={{ opacity: 0, x: -20 }}
+                initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                transition={{ duration: 0.2 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.25, ease: 'easeOut' }}
                 className="flex flex-col gap-5"
               >
                 <div className="text-center mb-2">
@@ -165,7 +147,6 @@ export const BotCreateSheet = ({ onClose, onCreate }: BotCreateSheetProps) => {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     className="input w-full"
-                    autoFocus
                   />
                 </div>
 
@@ -197,9 +178,13 @@ export const BotCreateSheet = ({ onClose, onCreate }: BotCreateSheetProps) => {
                       style={{ paddingLeft: '40px' }}
                     />
                   </div>
+                   <AnimatePresence>
                   {token && !token.includes(':') && (
-                    <p className="text-[12px] text-[var(--color-danger)] mt-1.5">Некорректный формат токена</p>
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}>
+                      <p className="text-[12px] text-[var(--color-danger)] mt-1.5">Некорректный формат токена</p>
+                    </motion.div>
                   )}
+                  </AnimatePresence>
                 </div>
               </motion.div>
             )}
@@ -207,10 +192,10 @@ export const BotCreateSheet = ({ onClose, onCreate }: BotCreateSheetProps) => {
             {step === 2 && (
               <motion.div
                 key="step2"
-                initial={{ opacity: 0, x: -20 }}
+                initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                transition={{ duration: 0.2 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.25, ease: 'easeOut' }}
                 className="flex flex-col gap-5"
               >
                 <div className="text-center mb-2">
@@ -244,9 +229,7 @@ export const BotCreateSheet = ({ onClose, onCreate }: BotCreateSheetProps) => {
                   />
                 </label>
 
-                <motion.div 
-                  initial={{ opacity: 0, height: 0 }} 
-                  animate={{ opacity: 1, height: 'auto' }} 
+                <div 
                   className={`flex flex-col gap-5 transition-all duration-300 ${skipPayment ? 'opacity-30 pointer-events-none grayscale select-none' : ''}`}
                 >
                   <div>
@@ -257,10 +240,12 @@ export const BotCreateSheet = ({ onClose, onCreate }: BotCreateSheetProps) => {
                         const isSelected = provider === p;
                         
                         return (
-                          <button
+                          <motion.button
                             key={p}
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.95 }}
                             onClick={() => { setProvider(p); setKeys({}); }}
-                            className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all cursor-pointer hover:bg-[var(--color-surface-2)]`}
+                            className={`flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-colors cursor-pointer hover:bg-[var(--color-surface-2)]`}
                             style={{
                               borderColor: isSelected ? info.color : 'var(--color-border)',
                               background: isSelected ? `${info.color}10` : 'var(--color-surface)',
@@ -271,7 +256,7 @@ export const BotCreateSheet = ({ onClose, onCreate }: BotCreateSheetProps) => {
                             <span style={{ fontSize: '12px', fontWeight: isSelected ? 600 : 500, color: isSelected ? 'var(--color-foreground)' : 'var(--color-foreground-secondary)' }}>
                               {info.label}
                             </span>
-                          </button>
+                          </motion.button>
                         );
                       })}
                     </div>
@@ -317,92 +302,123 @@ export const BotCreateSheet = ({ onClose, onCreate }: BotCreateSheetProps) => {
                       disabled={skipPayment}
                     />
                   </div>
-                </motion.div>
+                </div>
               </motion.div>
             )}
 
             {step === 3 && (
               <motion.div
                 key="step3"
-                initial={{ opacity: 0, x: -20 }}
+                initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                transition={{ duration: 0.2 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.25, ease: 'easeOut' }}
                 className="flex flex-col gap-5"
               >
-                <div className="text-center mb-2">
-                  <div className="w-16 h-16 mx-auto rounded-2xl bg-[var(--color-warning-soft)] flex items-center justify-center mb-4">
-                    <ExternalLink size={32} className="text-[var(--color-warning)]" />
+                {skipPayment ? (
+                  <div className="text-center mb-2 flex flex-col items-center">
+                    <div className="w-16 h-16 rounded-2xl bg-[var(--color-warning-soft)] flex items-center justify-center mb-4">
+                      <AlertTriangle size={32} className="text-[var(--color-warning)]" />
+                    </div>
+                    <h3 className="text-[18px] font-bold text-[var(--color-foreground)] mb-2">Без платежной системы</h3>
+                    <p className="text-[14px] text-[var(--color-foreground-secondary)] leading-relaxed">
+                      Вы пропустили настройку платежей. Пользователи не смогут оплачивать доступ. Вы можете настроить кассу позже в разделе "Настройки бота".
+                    </p>
+                    <div className="mt-6 bg-[var(--color-primary-soft)] p-4 rounded-2xl border border-[var(--color-primary)]/20 w-full text-left">
+                      <h4 className="text-[14px] font-semibold text-[var(--color-primary)] flex items-center gap-2 mb-2">
+                        <CheckCircle2 size={16} />
+                        Всё готово!
+                      </h4>
+                      <p className="text-[13px] text-[var(--color-primary)]/80 leading-relaxed">
+                        Нажмите кнопку ниже, чтобы завершить настройку и перейти к визуальному редактору сообщений.
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-[14px] text-[var(--color-foreground-secondary)] leading-relaxed">
-                    Последний шаг: укажите ссылку на публичную оферту или условия использования, чтобы соблюдать правила платёжных систем.
-                  </p>
-                </div>
+                ) : (
+                  <>
+                    <div className="text-center mb-2">
+                      <div className="w-16 h-16 mx-auto rounded-2xl bg-[var(--color-success-soft)] flex items-center justify-center mb-4">
+                        <ExternalLink size={32} className="text-[var(--color-success)]" />
+                      </div>
+                      <p className="text-[14px] text-[var(--color-foreground-secondary)] leading-relaxed">
+                        Последний шаг: укажите ссылку на публичную оферту или условия использования, чтобы соблюдать правила платёжных систем.
+                      </p>
+                    </div>
 
-                <div>
-                  <label className="text-[13px] font-medium text-[var(--color-foreground-secondary)] block mb-1.5">
-                    Ссылка на оферту
-                  </label>
-                  <input
-                    type="url"
-                    placeholder="https://mysite.com/offer"
-                    value={offerUrl}
-                    onChange={(e) => setOfferUrl(e.target.value)}
-                    className="input w-full"
-                  />
-                  <p className="text-[12px] text-[var(--color-foreground-tertiary)] mt-2">
-                    Можно настроить позже в разделе "Главные настройки".
-                  </p>
-                </div>
+                    <div>
+                      <label className="text-[13px] font-medium text-[var(--color-foreground-secondary)] block mb-1.5">
+                        Ссылка на оферту
+                      </label>
+                      <input
+                        type="url"
+                        placeholder="https://mysite.com/offer"
+                        value={offerUrl}
+                        onChange={(e) => setOfferUrl(e.target.value)}
+                        className="input w-full"
+                      />
+                      <p className="text-[12px] text-[var(--color-foreground-tertiary)] mt-2">
+                        Можно настроить позже в разделе "Главные настройки".
+                      </p>
+                    </div>
 
-                <div className="mt-4 bg-[var(--color-primary-soft)] p-4 rounded-2xl border border-[var(--color-primary)]/20">
-                  <h4 className="text-[14px] font-semibold text-[var(--color-primary)] flex items-center gap-2 mb-2">
-                    <CheckCircle2 size={16} />
-                    Всё готово!
-                  </h4>
-                  <p className="text-[13px] text-[var(--color-primary)]/80 leading-relaxed">
-                    Нажмите кнопку ниже, чтобы завершить настройку и перейти к визуальному редактору сообщений.
-                  </p>
-                </div>
+                    <div className="mt-4 bg-[var(--color-primary-soft)] p-4 rounded-2xl border border-[var(--color-primary)]/20">
+                      <h4 className="text-[14px] font-semibold text-[var(--color-primary)] flex items-center gap-2 mb-2">
+                        <CheckCircle2 size={16} />
+                        Всё готово!
+                      </h4>
+                      <p className="text-[13px] text-[var(--color-primary)]/80 leading-relaxed">
+                        Нажмите кнопку ниже, чтобы завершить настройку и перейти к визуальному редактору сообщений.
+                      </p>
+                    </div>
+                  </>
+                )}
               </motion.div>
             )}
-          </AnimatePresence>
-        </div>
+            </AnimatePresence>
+            </div>
+          </div>
 
         {/* Footer */}
-        <div className="p-5 border-t border-[var(--color-border)] flex gap-3 shrink-0 bg-[var(--color-surface)]">
+        <div className="p-5 border-t border-[var(--color-border)] flex gap-3 shrink-0 bg-[var(--color-surface)] relative z-10">
           {step > 1 && (
-            <button
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.96 }}
               onClick={() => setStep((s) => (s - 1) as any)}
-              className="h-[52px] px-6 rounded-2xl flex items-center justify-center font-semibold transition-all flex-[1]"
+              className="h-[52px] px-6 rounded-2xl flex items-center justify-center font-semibold transition-colors flex-[1]"
               style={{ background: 'var(--color-surface-2)', color: 'var(--color-foreground)', border: '1px solid var(--color-border)' }}
             >
               <ArrowLeft size={20} />
-            </button>
+            </motion.button>
           )}
 
           {step < 3 ? (
-            <button
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.96 }}
               onClick={() => setStep((s) => (s + 1) as any)}
               disabled={(step === 1 && !canGoNext1) || (step === 2 && !canGoNext2)}
-              className="h-[52px] rounded-2xl flex items-center justify-center font-semibold transition-all flex-[2] text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              className="h-[52px] rounded-2xl flex items-center justify-center font-semibold transition-colors flex-[2] text-white disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-accent))', boxShadow: '0 8px 16px -6px rgba(99,102,241,0.4)' }}
             >
               Далее
               <ArrowRight size={18} className="ml-2" />
-            </button>
+            </motion.button>
           ) : (
-            <button
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.96 }}
               onClick={handleCreate}
-              className="h-[52px] rounded-2xl flex items-center justify-center font-semibold transition-all flex-[2] text-white"
+              className="h-[52px] rounded-2xl flex items-center justify-center font-semibold transition-colors flex-[2] text-white"
               style={{ background: 'linear-gradient(135deg, var(--color-success), #10B981)', boxShadow: '0 8px 16px -6px rgba(16,185,129,0.4)' }}
             >
               Создать бота
               <CheckCircle2 size={18} className="ml-2" />
-            </button>
+            </motion.button>
           )}
         </div>
       </motion.div>
+      </div>
     </>
   );
 };

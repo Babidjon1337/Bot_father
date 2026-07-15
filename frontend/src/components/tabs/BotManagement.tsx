@@ -6,90 +6,29 @@ import {
   Plus,
   Settings,
   Users,
-  Zap,
   ArrowRight,
   Activity,
   Power,
   RefreshCw,
   Trash2,
+  TrendingUp,
+  MessageSquare,
+  CreditCard,
+  Lock
 } from "lucide-react";
 import { EmptyBotState } from "../EmptyBotState";
-import type { AppState } from "../../types";
+import { useAppState } from "../../providers/AppStateProvider";
 
-interface BotManagementProps {
-  appState: AppState;
-  onCreateBot: () => void;
-  onOpenBot: (botId: string) => void;
-  onEditBot: (botId: string) => void;
-  onEditBotSettings: (botId: string) => void;
-  onToggleBot?: (botId: string, newStatus: "active" | "inactive") => void;
-  onDeleteBot?: (botId: string) => void;
-  onClearLeads?: (botId: string) => void;
-}
-
-const BOT_GRADIENTS = [
-  {
-    from: "#4F46E5",
-    to: "#818CF8",
-    soft: "rgba(79,70,229,0.08)",
-    border: "rgba(79,70,229,0.2)",
-  },
-  {
-    from: "#7C3AED",
-    to: "#A78BFA",
-    soft: "rgba(124,58,237,0.08)",
-    border: "rgba(124,58,237,0.2)",
-  },
-  {
-    from: "#0284C7",
-    to: "#38BDF8",
-    soft: "rgba(2,132,199,0.08)",
-    border: "rgba(2,132,199,0.2)",
-  },
-  {
-    from: "#16A34A",
-    to: "#4ADE80",
-    soft: "rgba(22,163,74,0.08)",
-    border: "rgba(22,163,74,0.2)",
-  },
-  {
-    from: "#DB2777",
-    to: "#F472B6",
-    soft: "rgba(219,39,119,0.08)",
-    border: "rgba(219,39,119,0.2)",
-  },
-  {
-    from: "#EA580C",
-    to: "#FB923C",
-    soft: "rgba(234,88,12,0.08)",
-    border: "rgba(234,88,12,0.2)",
-  },
-  {
-    from: "#0891B2",
-    to: "#67E8F9",
-    soft: "rgba(8,145,178,0.08)",
-    border: "rgba(8,145,178,0.2)",
-  },
-];
-
-export const BotManagement = ({
-  appState,
-  onCreateBot,
-  onOpenBot: _onOpenBot,
-  onEditBot,
-  onEditBotSettings,
-  onToggleBot,
-  onDeleteBot,
-  onClearLeads,
-}: BotManagementProps) => {
-  const { bots } = appState;
+export const BotManagement = () => {
+  const { appState, setAppState, setSheet, setActiveTab, handleCreateBotClick: onCreateBot } = useAppState();
+  const { bots, subscriptionStatus } = appState;
   const hasBots = bots.length > 0;
-  const activeBots = bots.filter((b) => b.status === "active").length;
+  const isPro = subscriptionStatus === "active";
+  
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const { showConfirm } = useAlert();
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
@@ -101,299 +40,220 @@ export const BotManagement = ({
   }, [openMenuId]);
 
   if (!hasBots) {
-    return <EmptyBotState onCreateBot={onCreateBot} />;
+    return <EmptyBotState onCreateBot={onCreateBot} title="Список ботов пуст" description="Создайте своего первого Telegram-бота, чтобы начать управлять ими здесь." />;
   }
 
+  const activeBots = bots.filter((b) => b.status === "active").length;
+  const totalUsers = bots.reduce((s, b) => s + (b.usersCount || 0), 0);
+
+  const onEditBot = (botId: string) => {
+    const bot = bots.find(b => b.id === botId);
+    if (bot) {
+      setAppState(prev => ({ ...prev, activeBot: bot }));
+      setActiveTab('build');
+    }
+  };
+
+  const onEditBotSettings = (botId: string) => {
+    const bot = bots.find(b => b.id === botId);
+    if (bot) {
+      setAppState(prev => ({ ...prev, activeBot: bot }));
+      setSheet('bot_settings');
+    }
+  };
+
+  const onToggleBot = (botId: string, newStatus: 'active' | 'inactive') => {
+    setAppState(prev => ({
+      ...prev,
+      bots: prev.bots.map(b => b.id === botId ? { ...b, status: newStatus } : b),
+      activeBot: prev.activeBot?.id === botId ? { ...prev.activeBot, status: newStatus } : prev.activeBot,
+    }));
+  };
+
+  const onDeleteBot = (botId: string) => {
+    setAppState(prev => ({
+      ...prev,
+      bots: prev.bots.filter(b => b.id !== botId),
+      activeBot: prev.activeBot?.id === botId ? null : prev.activeBot,
+    }));
+  };
+
   return (
-    <div className="pb-24 w-full max-w-6xl mx-auto px-4 md:px-6">
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.25 }}
-      >
-        {/* Stats bar */}
-        <div className="grid grid-cols-3 gap-4 mb-8">
+    <div className="pb-24 w-full max-w-[1000px] mx-auto px-4 md:px-6">
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+        
+        {/* Top Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+          <div>
+            <h1 className="text-2xl font-bold text-[var(--color-foreground)]">Управление ботами</h1>
+            <p className="text-[14px] text-[var(--color-foreground-secondary)] mt-1">Аналитика и настройки всех ваших проектов</p>
+          </div>
+          <button 
+            onClick={() => {
+              if (!isPro && bots.length >= 1) {
+                setActiveTab('subscription');
+              } else {
+                onCreateBot();
+              }
+            }}
+            className="btn-primary-saas whitespace-nowrap"
+            style={{ height: '44px', padding: '0 20px', borderRadius: '14px', fontSize: '14px' }}
+          >
+            {(!isPro && bots.length >= 1) ? <Lock size={16} className="mr-2" /> : <Plus size={16} className="mr-2" />}
+            {(!isPro && bots.length >= 1) ? 'Доступно в PRO' : 'Создать бота'}
+          </button>
+        </div>
+
+        {/* Analytics Widgets */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           {[
-            {
-              label: "Всего ботов",
-              value: bots.length,
-              icon: Bot,
-              color: "var(--color-primary)",
-            },
-            {
-              label: "Активных",
-              value: activeBots,
-              icon: Activity,
-              color: "var(--color-success)",
-            },
-            {
-              label: "Пользователей",
-              value: bots.reduce((s, b) => s + (b.usersCount || 0), 0),
-              icon: Users,
-              color: "var(--color-accent)",
-            },
+            { label: "Всего ботов", value: bots.length, sub: "Запущено", icon: Bot, color: "var(--color-primary)" },
+            { label: "Активных", value: activeBots, sub: "В работе", icon: Activity, color: "var(--color-success)" },
+            { label: "Пользователей", value: totalUsers, sub: "Суммарно", icon: Users, color: "var(--color-accent)" },
+            { label: "Конверсия", value: "24%", sub: "В оплату", icon: TrendingUp, color: "var(--color-warning)" },
           ].map((stat, i) => (
             <motion.div
               key={i}
-              initial={{ opacity: 0, y: 8 }}
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.06 }}
-              className="card-saas p-4 flex items-center gap-4"
+              transition={{ delay: i * 0.05 }}
+              className="card-saas p-4 relative overflow-hidden group"
+              style={{ borderRadius: '20px' }}
             >
-              <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                style={{ background: `${stat.color}18` }}
-              >
-                <stat.icon size={20} style={{ color: stat.color }} />
-              </div>
-              <div>
-                <div className="text-[22px] font-bold text-[var(--color-foreground)] leading-none mb-0.5">
-                  {stat.value}
+              <div className="flex justify-between items-start mb-4">
+                <div className="w-10 h-10 rounded-[12px] flex items-center justify-center transition-transform group-hover:scale-110" style={{ background: `${stat.color}15`, color: stat.color }}>
+                  <stat.icon size={18} />
                 </div>
-                <div className="text-[12px] text-[var(--color-foreground-secondary)]">
-                  {stat.label}
-                </div>
+                <div className="text-[24px] font-bold text-[var(--color-foreground)] leading-none">{stat.value}</div>
               </div>
+              <div className="text-[14px] font-semibold text-[var(--color-foreground)]">{stat.label}</div>
+              <div className="text-[12px] text-[var(--color-foreground-tertiary)]">{stat.sub}</div>
             </motion.div>
           ))}
         </div>
 
-        {/* Bot cards grid */}
-          <div>
-            <h3 className="text-[15px] font-bold text-[var(--color-foreground)] mb-4">
-              Ваши боты
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {bots.map((bot, index) => {
-                const g = BOT_GRADIENTS[index % BOT_GRADIENTS.length];
-                const initials = bot.name.substring(0, 2).toUpperCase();
-                const isActive = bot.status === "active";
-                const isMenuOpen = openMenuId === bot.id;
+        {/* Bots List */}
+        <div className="space-y-4" ref={menuRef}>
+          {bots.map((bot, index) => {
+            const initials = bot.name.substring(0, 2).toUpperCase();
+            const isActive = bot.status === "active";
+            const isMenuOpen = openMenuId === bot.id;
 
-                return (
-                  <motion.div
-                    key={bot.id}
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.07 }}
-                    className="relative card-saas overflow-visible"
-                  >
-                    {/* Gradient top strip */}
-                    <div
-                      className="h-1 w-full rounded-t-2xl"
-                      style={{
-                        background: `linear-gradient(90deg, ${g.from}, ${g.to})`,
-                      }}
-                    />
-
-                    <div className="p-5">
-                      {/* Top row: avatar + name + toggle + menu */}
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                          <div
-                            className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-[14px] shrink-0 shadow-sm"
-                            style={{
-                              background: `linear-gradient(135deg, ${g.from}, ${g.to})`,
-                            }}
-                          >
-                            {initials}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <input
-                              type="text"
-                              defaultValue={bot.name}
-                              className="text-[15px] font-bold text-[var(--color-foreground)] leading-tight mb-0.5 bg-transparent border-none outline-none hover:bg-[var(--color-surface-2)] focus:bg-[var(--color-surface-2)] focus:ring-2 focus:ring-[var(--color-primary-soft)] rounded px-1 -ml-1 w-full transition-all truncate"
-                              placeholder="Имя бота"
-                            />
-                            <div className="text-[12px] text-[var(--color-foreground-secondary)] px-1">
-                              @{(bot.username || "username").replace("@", "")}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          {/* Power toggle */}
-                          <button
-                            onClick={() =>
-                              onToggleBot?.(
-                                bot.id,
-                                isActive ? "inactive" : "active",
-                              )
-                            }
-                            title={
-                              isActive ? "Отключить бота" : "Включить бота"
-                            }
-                            className="flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all"
-                            style={{
-                              background: isActive
-                                ? "var(--color-success-soft)"
-                                : "var(--color-surface-2)",
-                              color: isActive
-                                ? "var(--color-success)"
-                                : "var(--color-foreground-tertiary)",
-                              border: `1px solid ${isActive ? "rgba(22,163,74,0.2)" : "var(--color-border)"}`,
-                              width: "90px",
-                              flexShrink: 0,
-                            }}
-                          >
-                            <Power size={11} />
-                            {isActive ? "Активен" : "Выкл"}
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Stats row */}
-                      <div
-                        className="flex flex-wrap items-center justify-between gap-2 py-3 px-3 rounded-xl mb-4"
-                        style={{ background: g.soft }}
-                      >
-                        <div className="flex items-center gap-1.5 text-[12px] min-w-0">
-                          <Users
-                            size={12}
-                            style={{ color: g.from, flexShrink: 0 }}
-                          />
-                          <span className="font-semibold text-[var(--color-foreground)]">
-                            {bot.usersCount}
-                          </span>
-                          <span className="text-[var(--color-foreground-secondary)] truncate">
-                            польз.
-                          </span>
-                        </div>
-                        <div className="hidden sm:block w-px h-4 bg-[var(--color-border)] opacity-50" />
-                        <div className="flex items-center gap-1.5 text-[12px] min-w-0">
-                          <Zap
-                            size={12}
-                            style={{ color: g.from, flexShrink: 0 }}
-                          />
-                          <span className="font-semibold text-[var(--color-foreground)]">
-                            1 250 ₽
-                          </span>
-                          <span className="text-[var(--color-foreground-secondary)] truncate">
-                            доход
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Actions */}
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => onEditBot(bot.id)}
-                          className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-bold text-white transition-all hover:opacity-90 active:scale-95 shadow-sm"
-                          style={{
-                            background: `linear-gradient(135deg, ${g.from}, ${g.to})`,
-                          }}
-                        >
-                          Открыть
-                          <ArrowRight size={14} />
-                        </button>
-
-                        <div className="relative">
-                          <button
-                            onClick={() =>
-                              setOpenMenuId(isMenuOpen ? null : bot.id)
-                            }
-                            title="Меню бота"
-                            className={`w-10 h-10 flex items-center justify-center rounded-xl border transition-colors ${
-                              isMenuOpen
-                                ? "border-[var(--color-primary)] bg-[var(--color-primary-soft)] text-[var(--color-primary)]"
-                                : "border-[var(--color-border)] hover:bg-[var(--color-surface-2)] text-[var(--color-foreground-secondary)] hover:text-[var(--color-foreground)]"
-                            }`}
-                          >
-                            <Settings size={15} />
-                          </button>
-
-                          <AnimatePresence>
-                            {isMenuOpen && (
-                              <motion.div
-                                initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                                animate={{ opacity: 1, scale: 1, y: 0 }}
-                                exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                                transition={{ duration: 0.15 }}
-                                className="absolute right-0 top-12 w-56 bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xl rounded-xl overflow-hidden z-20"
-                                style={{ transformOrigin: "top right" }}
-                              >
-                                <div className="p-1">
-                                  <button
-                                    onClick={() => {
-                                      setOpenMenuId(null);
-                                      onEditBotSettings(bot.id);
-                                    }}
-                                    className="w-full flex items-center gap-3 px-3 py-2 text-left text-[14px] text-[var(--color-foreground)] hover:bg-[var(--color-surface-2)] rounded-lg transition-colors"
-                                  >
-                                    <Settings size={16} />
-                                    <span>Настройки бота</span>
-                                  </button>
-                                  <div className="h-px w-full bg-[var(--color-border)] my-1" />
-                                  <button
-                                    onClick={() => {
-                                      setOpenMenuId(null);
-                                      showConfirm({
-                                        title: "Очистить базу лидов?",
-                                        message:
-                                          "Эта операция удалит всех пользователей и собранные данные (лиды) из базы этого бота. Воронки и настройки сохранятся. Вы уверены, что хотите сбросить базу?",
-                                        type: "warning",
-                                        confirmText: "Да, сбросить",
-                                        cancelText: "Отмена",
-                                        onConfirm: () => onClearLeads?.(bot.id),
-                                      });
-                                    }}
-                                    className="w-full flex items-center gap-3 px-3 py-2 text-left text-[14px] text-[var(--color-warning)] hover:bg-[var(--color-warning-soft)] rounded-lg transition-colors"
-                                  >
-                                    <RefreshCw size={16} />
-                                    <span>Сбросить базу</span>
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      setOpenMenuId(null);
-                                      showConfirm({
-                                        title: "Удалить бота?",
-                                        message:
-                                          "Вы уверены, что хотите полностью удалить этого бота? Все настройки, воронки и база пользователей будут удалены без возможности восстановления.",
-                                        type: "danger",
-                                        confirmText: "Удалить навсегда",
-                                        cancelText: "Отмена",
-                                        onConfirm: () => onDeleteBot?.(bot.id),
-                                      });
-                                    }}
-                                    className="w-full flex items-center gap-3 px-3 py-2 text-left text-[14px] text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)] rounded-lg transition-colors"
-                                  >
-                                    <Trash2 size={16} />
-                                    <span>Удалить бота</span>
-                                  </button>
-                                </div>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                );
-              })}
-
-              {/* Add bot card */}
-              <motion.button
-                initial={{ opacity: 0, y: 12 }}
+            return (
+              <motion.div
+                key={bot.id}
+                initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: bots.length * 0.07 }}
-                onClick={onCreateBot}
-                className="group bg-[var(--color-surface)] border border-dashed border-[var(--color-border)] rounded-2xl p-5 flex flex-col items-center justify-center min-h-[200px] hover:border-[var(--color-border-strong)] transition-all duration-300 text-center"
+                transition={{ delay: index * 0.05 }}
+                className="card-saas p-0 overflow-visible relative group"
+                style={{ borderRadius: '24px' }}
               >
-                <div
-                  className="w-12 h-12 rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform"
-                  style={{ background: "var(--color-primary-soft)" }}
-                >
-                  <Plus size={22} style={{ color: "var(--color-primary)" }} />
+                <div className="flex flex-col lg:flex-row lg:items-center p-5 gap-6">
+                  
+                  {/* Info Section */}
+                  <div className="flex items-center gap-4 flex-1 min-w-0">
+                    <div className="w-[60px] h-[60px] rounded-[18px] bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-accent)] text-white flex items-center justify-center text-xl font-black shadow-md shrink-0">
+                      {initials}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <h3 className="text-[18px] font-bold text-[var(--color-foreground)] truncate max-w-[200px]">{bot.name}</h3>
+                        {!bot.paymentProvider && (
+                          <div className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-[var(--color-warning-soft)] text-[var(--color-warning)]" title="Платежная система не подключена">
+                            Нет кассы
+                          </div>
+                        )}
+                        <div className={`px-2 py-0.5 rounded-full text-[11px] font-bold flex items-center gap-1.5 ${isActive ? 'bg-[var(--color-success-soft)] text-[var(--color-success)]' : 'bg-[var(--color-surface-2)] text-[var(--color-foreground-tertiary)]'}`}>
+                          {isActive && <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-success)] animate-pulse" />}
+                          {isActive ? 'Работает' : 'Черновик'}
+                        </div>
+                      </div>
+                      <div className="text-[14px] text-[var(--color-foreground-secondary)] truncate">@{bot.username?.replace('@', '') || 'username'}</div>
+                    </div>
+                  </div>
+
+                  {/* Quick Stats Section */}
+                  <div className="flex items-center gap-6 lg:border-l lg:border-[var(--color-border)] lg:pl-6">
+                    <div className="text-center lg:text-left">
+                      <div className="flex items-center gap-1.5 text-[12px] text-[var(--color-foreground-tertiary)] mb-1">
+                        <Users size={12} /> Лиды
+                      </div>
+                      <div className="text-[16px] font-bold text-[var(--color-foreground)]">{bot.usersCount}</div>
+                    </div>
+                    <div className="text-center lg:text-left">
+                      <div className="flex items-center gap-1.5 text-[12px] text-[var(--color-foreground-tertiary)] mb-1">
+                        <MessageSquare size={12} /> Сообщения
+                      </div>
+                      <div className="text-[16px] font-bold text-[var(--color-foreground)]">{(bot.usersCount || 0) * 3 + 15}</div>
+                    </div>
+                    <div className="text-center lg:text-left">
+                      <div className="flex items-center gap-1.5 text-[12px] text-[var(--color-foreground-tertiary)] mb-1">
+                        <CreditCard size={12} /> Выручка
+                      </div>
+                      <div className="text-[16px] font-bold text-[var(--color-success)]">{bot.paymentProvider ? '14 500 ₽' : '0 ₽'}</div>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 mt-4 lg:mt-0 pt-4 lg:pt-0 border-t border-[var(--color-border)] lg:border-none w-full lg:w-auto shrink-0 relative">
+                    <button
+                      onClick={() => onEditBot(bot.id)}
+                      className="flex-1 lg:flex-none btn-primary-saas px-4 py-2.5 rounded-[12px] text-[13px] gap-2 shadow-sm"
+                    >
+                      Редактор <ArrowRight size={14} />
+                    </button>
+                    
+                    <button
+                      onClick={() => onToggleBot(bot.id, isActive ? 'inactive' : 'active')}
+                      className="w-10 h-10 rounded-[12px] flex items-center justify-center border transition-colors hover:bg-[var(--color-surface-2)] shrink-0"
+                      style={{
+                        borderColor: isActive ? 'var(--color-success-soft)' : 'var(--color-border)',
+                        color: isActive ? 'var(--color-success)' : 'var(--color-foreground-tertiary)'
+                      }}
+                      title={isActive ? "Остановить" : "Запустить"}
+                    >
+                      <Power size={16} />
+                    </button>
+
+                    <button
+                      onClick={() => setOpenMenuId(isMenuOpen ? null : bot.id)}
+                      className={`w-10 h-10 rounded-[12px] flex items-center justify-center border transition-colors shrink-0 ${isMenuOpen ? 'bg-[var(--color-primary-soft)] border-[var(--color-primary)] text-[var(--color-primary)]' : 'border-[var(--color-border)] hover:bg-[var(--color-surface-2)] text-[var(--color-foreground-secondary)]'}`}
+                    >
+                      <Settings size={16} />
+                    </button>
+
+                    <AnimatePresence>
+                      {isMenuOpen && (
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                          transition={{ duration: 0.15 }}
+                          className="absolute right-0 top-14 w-56 bg-[var(--color-surface)] border border-[var(--color-border)] shadow-xl rounded-xl overflow-hidden z-20"
+                        >
+                          <div className="p-1">
+                            <button onClick={() => { setOpenMenuId(null); onEditBotSettings(bot.id); }} className="w-full flex items-center gap-3 px-3 py-2.5 text-left text-[14px] font-medium text-[var(--color-foreground)] hover:bg-[var(--color-surface-2)] rounded-lg transition-colors">
+                              <Settings size={16} /> Настройки бота
+                            </button>
+                            <div className="h-px w-full bg-[var(--color-border)] my-1" />
+                            <button onClick={() => { setOpenMenuId(null); showConfirm({ title: "Очистить базу лидов?", message: "Эта операция удалит всех пользователей. Воронки сохранятся.", type: "warning", confirmText: "Сбросить", cancelText: "Отмена", onConfirm: () => {} }); }} className="w-full flex items-center gap-3 px-3 py-2.5 text-left text-[14px] font-medium text-[var(--color-warning)] hover:bg-[var(--color-warning-soft)] rounded-lg transition-colors">
+                              <RefreshCw size={16} /> Сбросить базу
+                            </button>
+                            <button onClick={() => { setOpenMenuId(null); showConfirm({ title: "Удалить бота?", message: "Бот будет удален навсегда.", type: "danger", confirmText: "Удалить", cancelText: "Отмена", onConfirm: () => onDeleteBot(bot.id) }); }} className="w-full flex items-center gap-3 px-3 py-2.5 text-left text-[14px] font-medium text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)] rounded-lg transition-colors">
+                              <Trash2 size={16} /> Удалить бота
+                            </button>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                  </div>
                 </div>
-                <div className="text-[14px] font-bold text-[var(--color-foreground)] mb-1">
-                  Добавить бота
-                </div>
-                <div className="text-[12px] text-[var(--color-foreground-secondary)]">
-                  Создайте нового бота
-                </div>
-              </motion.button>
-            </div>
-          </div>
+              </motion.div>
+            );
+          })}
+        </div>
+
       </motion.div>
     </div>
   );

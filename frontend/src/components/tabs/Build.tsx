@@ -6,20 +6,9 @@ import { EmptyBotState } from '../EmptyBotState';
 import { FunnelCard } from '../FunnelCard';
 import { TimerPresets } from '../TimerPresets';
 import { DeliverySelector } from '../DeliverySelector';
-import type { FunnelNode, DeliveryType, AppState } from '../../types';
-
-interface BuildProps {
-  appState: AppState;
-  blocks: FunnelNode[];
-  selectedBlockId: string;
-  setSelectedBlockId: (id: string) => void;
-  updateBlock: (id: string, field: keyof FunnelNode, value: string) => void;
-  onPublish: () => void;
-  onCreateBot: () => void;
-  onOpenSettings: () => void;
-  theme: 'light' | 'dark';
-}
-
+import type { DeliveryType } from '../../types';
+import { useAppState } from '../../providers/AppStateProvider';
+import { useAlert } from '../AlertProvider';
 // --- Rich Text Editor ---
 export const RichTextEditor = ({ value, onChange, placeholder }: { value: string, onChange: (v: string) => void, placeholder?: string }) => {
   const editorRef = useRef<HTMLDivElement>(null);
@@ -68,16 +57,71 @@ export const RichTextEditor = ({ value, onChange, placeholder }: { value: string
 };
 // --- End Editor ---
 
-export const Build = ({ 
-  appState, 
-  blocks, 
-  setSelectedBlockId, 
-  updateBlock, 
-  onPublish,
-  onCreateBot,
-  onOpenSettings,
-  theme 
-}: BuildProps) => {
+const MessageBubble = ({ text, button, media, theme }: { text?: string, button?: string, media?: boolean, theme: 'light' | 'dark' }) => (
+  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxWidth: '85%' }}>
+    <div style={{
+      background: theme === 'dark' ? '#27272a' : '#ffffff',
+      color: 'var(--color-foreground)',
+      padding: media ? '4px' : '10px 14px',
+      borderRadius: '16px',
+      borderBottomLeftRadius: '4px',
+      fontSize: '14px',
+      lineHeight: 1.4,
+      boxShadow: theme === 'dark' ? '0 1px 2px rgba(0,0,0,0.3)' : '0 1px 2px rgba(0,0,0,0.05), 0 2px 8px rgba(0,0,0,0.03)',
+    }}>
+      {media && (
+        <div style={{
+          background: 'var(--color-surface-2)',
+          borderRadius: '12px',
+          height: '140px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: text ? '8px' : '0',
+          color: 'var(--color-foreground-tertiary)'
+        }}>
+          <ImageIcon size={24} style={{ marginBottom: '8px' }} />
+          <span style={{ fontSize: '11px', textAlign: 'center', padding: '0 10px' }}>
+            Тут находится ваше фото или видео
+          </span>
+        </div>
+      )}
+      {text && <div style={{ padding: media ? '0 8px 8px 8px' : '0', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }} dangerouslySetInnerHTML={{ __html: text.replace(/<[^>]*>?/gm, '') }} />}
+    </div>
+    {button && (
+      <div style={{
+        background: 'rgba(255, 255, 255, 0.1)',
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
+        color: 'var(--color-primary)',
+        padding: '10px',
+        borderRadius: '12px',
+        fontSize: '14px',
+        fontWeight: 600,
+        textAlign: 'center',
+        boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+      }}>
+        {button}
+      </div>
+    )}
+  </div>
+);
+
+export const Build = () => {
+  const { 
+    appState, 
+    blocks,
+    setSelectedBlockId,
+    updateBlock, 
+    theme, 
+    setSheet, 
+    handleCreateBotClick: onCreateBot,
+    setToastMessage
+  } = useAppState();
+
+  const onOpenSettings = () => setSheet('bot_settings');
+
   const [deliveryType, setDeliveryType] = useState<DeliveryType>('link');
   const [deliveryValue, setDeliveryValue] = useState('');
 
@@ -87,7 +131,37 @@ export const Build = ({
   const [previewStep, setPreviewStep] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const { showConfirm: showAlert } = useAlert();
   const [, setForceRender] = useState(0);
+
+  const handleSave = () => {
+    setIsSaving(true);
+    setTimeout(() => {
+      setIsSaving(false);
+      setToastMessage('Изменения сохранены');
+    }, 800);
+  };
+
+  const handlePublish = () => {
+    setIsPublishing(true);
+    setTimeout(() => {
+      setIsPublishing(false);
+      if (!appState.activeBot?.paymentProvider) {
+        showAlert({
+          title: "Касса не подключена",
+          message: "Чтобы опубликовать бота, вам нужно настроить платежного провайдера.",
+          type: "warning",
+          confirmText: "Настроить кассу",
+          cancelText: "Позже",
+          onConfirm: () => setSheet('bot_settings')
+        });
+      } else {
+         setToastMessage('Бот успешно опубликован');
+      }
+    }, 1000);
+  };
 
   useEffect(() => {
     if (!isPlaying) return;
@@ -108,95 +182,65 @@ export const Build = ({
     setIsPlaying(true);
   };
 
-  const MessageBubble = ({ text, button, media }: { text?: string, button?: string, media?: boolean }) => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxWidth: '85%' }}>
-      <div style={{
-        background: 'var(--color-surface)',
-        color: 'var(--color-foreground)',
-        padding: media ? '4px' : '10px 14px',
-        borderRadius: '16px',
-        borderBottomLeftRadius: '4px',
-        fontSize: '14px',
-        lineHeight: 1.4,
-        boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
-      }}>
-        {media && (
-          <div style={{
-            background: 'var(--color-surface-2)',
-            borderRadius: '12px',
-            height: '140px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginBottom: text ? '8px' : '0',
-            color: 'var(--color-foreground-tertiary)'
-          }}>
-            <ImageIcon size={24} style={{ marginBottom: '8px' }} />
-            <span style={{ fontSize: '11px', textAlign: 'center', padding: '0 10px' }}>
-              Тут находится ваше фото или видео
-            </span>
-          </div>
-        )}
-        {text && <div style={{ padding: media ? '0 8px 8px 8px' : '0', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }} dangerouslySetInnerHTML={{ __html: text.replace(/<[^>]*>?/gm, '') }} />}
-      </div>
-      {button && (
-        <div style={{
-          background: 'rgba(255, 255, 255, 0.1)',
-          backdropFilter: 'blur(10px)',
-          WebkitBackdropFilter: 'blur(10px)',
-          color: 'var(--color-primary)',
-          padding: '10px',
-          borderRadius: '12px',
-          fontSize: '14px',
-          fontWeight: 500,
-          textAlign: 'center',
-          cursor: 'pointer',
-          border: '1px solid rgba(255, 255, 255, 0.05)',
-          boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-        }}>
-          {button}
-        </div>
-      )}
-    </div>
-  );
-
   const hasMainSettings = !!(appState.activeBot?.token && appState.activeBot?.name);
+  
+  const isStartComplete = !!(getBlock('start')?.content?.replace(/<[^>]*>/g, '').trim() && getBlock('start')?.buttonText?.trim());
+  const isPush1Complete = !!(getBlock('push1')?.content?.replace(/<[^>]*>/g, '').trim() && getBlock('push1')?.buttonText?.trim());
+  const isPush2Complete = !!(getBlock('push2')?.content?.replace(/<[^>]*>/g, '').trim());
+  const isDeliveryComplete = !!(getBlock('delivery')?.content?.replace(/<[^>]*>/g, '').trim() && deliveryValue.trim());
+  
+  const isAllBlocksComplete = isStartComplete && isPush1Complete && isPush2Complete && isDeliveryComplete;
 
   if (!appState.activeBot) {
-    return <EmptyBotState onCreateBot={onCreateBot} />;
+    return <EmptyBotState onCreateBot={onCreateBot} title="Воронка недоступна" description="Чтобы настроить структуру воронки, необходимо подключить Telegram-бота." />;
   }
 
   return (
-    <div style={{ paddingBottom: '100px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
+      <style>{`
+        .action-bar-fixed {
+          bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 16px);
+        }
+        @media (min-width: 1024px) {
+          .action-bar-fixed { bottom: 24px; }
+        }
+      `}</style>
+      
       {/* Bot Header (Settings Access) */}
-      <div className="card-saas flex items-center justify-between gap-4 flex-wrap mb-6 px-5 py-4">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+      <div 
+        className="flex items-center justify-between gap-4 flex-wrap mb-8 px-5 py-4 border rounded-[24px] shadow-sm"
+        style={{
+          background: 'var(--color-surface)',
+          borderColor: 'var(--color-border)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
           <div style={{
-            width: '40px',
-            height: '40px',
-            borderRadius: '12px',
+            width: '44px',
+            height: '44px',
+            borderRadius: '16px',
             background: 'var(--color-primary-soft)',
             color: 'var(--color-primary)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontWeight: 600,
-            fontSize: '18px'
+            fontWeight: 700,
+            fontSize: '20px'
           }}>
             {appState.activeBot.name.charAt(0).toUpperCase()}
           </div>
           <div>
-            <div style={{ fontWeight: 600, color: 'var(--color-foreground)', fontSize: '15px' }}>
+            <div style={{ fontWeight: 700, color: 'var(--color-foreground)', fontSize: '16px', letterSpacing: '-0.01em' }}>
               {appState.activeBot.name}
             </div>
-            <div style={{ fontSize: '13px', color: 'var(--color-foreground-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div style={{ fontSize: '13px', color: 'var(--color-foreground-secondary)', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
               <span style={{
                 display: 'inline-block',
                 width: '8px',
                 height: '8px',
                 borderRadius: '50%',
-                background: appState.activeBot.status === 'active' ? 'var(--color-success)' : 'var(--color-warning)'
+                background: appState.activeBot.status === 'active' ? 'var(--color-success)' : 'var(--color-warning)',
+                boxShadow: appState.activeBot.status === 'active' ? '0 0 8px var(--color-success-soft)' : '0 0 8px var(--color-warning-soft)'
               }} />
               {appState.activeBot.status === 'active' ? 'Активен' : 'Черновик'}
             </div>
@@ -208,23 +252,23 @@ export const Build = ({
             <div style={{
               background: 'var(--color-warning-soft)',
               color: 'var(--color-warning)',
-              padding: '6px 12px',
-              borderRadius: '8px',
+              padding: '8px 14px',
+              borderRadius: '12px',
               fontSize: '13px',
-              fontWeight: 500,
+              fontWeight: 600,
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
               cursor: 'pointer'
             }} onClick={onOpenSettings}>
-              <ShieldAlert size={14} />
+              <ShieldAlert size={16} />
               Касса не подключена
             </div>
           )}
           <button 
             className="btn-primary-saas" 
             onClick={onOpenSettings}
-            style={{ fontSize: '14px', height: '36px', padding: '0 16px' }}
+            style={{ fontSize: '14px', height: '40px', padding: '0 20px', borderRadius: '12px' }}
           >
             ⚙️ Настройки бота
           </button>
@@ -237,12 +281,12 @@ export const Build = ({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.18 }}
-      className={`grid grid-cols-1 ${hasMainSettings ? 'lg:grid-cols-[1fr_340px]' : ''} gap-6 pb-24`}
+      className={`grid grid-cols-1 ${hasMainSettings ? 'lg:grid-cols-[1fr_340px]' : ''} gap-6`}
     >
       {/* Left: funnel steps */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxWidth: hasMainSettings ? 'none' : '600px', margin: hasMainSettings ? '0' : '0 auto', width: '100%' }}>
         <div data-tour="tour-funnel-steps" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <FunnelCard stepId="start" title="Шаг 1 · Старт" isComplete={!!(getBlock('start')?.content)} defaultExpanded>
+                <FunnelCard stepId="start" title="Шаг 1 · Старт" isComplete={isStartComplete} defaultExpanded>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     <div onClick={() => setSelectedBlockId('start')}>
                       <label className="text-label" style={{ display: 'block', marginBottom: '8px' }}>Текст сообщения</label>
@@ -264,7 +308,7 @@ export const Build = ({
                   </div>
                 </FunnelCard>
 
-                <FunnelCard stepId="push1" title="Шаг 2 · Дожим 1" isComplete={!!(getBlock('push1')?.content)}>
+                <FunnelCard stepId="push1" title="Шаг 2 · Дожим 1" isComplete={isPush1Complete}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     <TimerPresets
                       value={getBlock('push1')?.delay || '1ч'}
@@ -291,7 +335,7 @@ export const Build = ({
                   </div>
                 </FunnelCard>
 
-                <FunnelCard stepId="push2" title="Шаг 3 · Дожим 2" isComplete={!!(getBlock('push2')?.content)}>
+                <FunnelCard stepId="push2" title="Шаг 3 · Дожим 2" isComplete={isPush2Complete}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     <TimerPresets
                       value={getBlock('push2')?.delay || '24ч'}
@@ -309,7 +353,7 @@ export const Build = ({
                   </div>
                 </FunnelCard>
 
-                <FunnelCard stepId="after_payment" title="Шаг 4 · После оплаты" isComplete={false}>
+                <FunnelCard stepId="after_payment" title="Шаг 4 · После оплаты" isComplete={isDeliveryComplete}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     <DeliverySelector
                       value={deliveryType}
@@ -328,7 +372,6 @@ export const Build = ({
                   </div>
                 </FunnelCard>
         </div>
-        <div style={{ height: '80px' }} /> {/* Spacer for fixed bottom bar */}
       </div>
 
       {/* Right: Live Preview (desktop only) */}
@@ -347,42 +390,62 @@ export const Build = ({
           </div>
           
           {/* Phone Mockup */}
-          <div
-            style={{
-              margin: '0 auto',
-              width: '320px',
-              height: '620px',
-              background: theme === 'dark' ? '#0f0f0f' : '#e4eaf0', // TG default background tint
-              backgroundImage: theme === 'dark' 
-                ? 'radial-gradient(circle at 50% 0%, #1a1a24 0%, #0f0f0f 100%)' 
-                : 'radial-gradient(circle at 50% 0%, #f0f4f8 0%, #e4eaf0 100%)',
-              borderRadius: '44px',
-              border: `10px solid ${theme === 'dark' ? '#18181b' : '#ffffff'}`,
-              boxShadow: theme === 'dark' ? '0 25px 50px -12px rgba(0,0,0,0.5)' : '0 25px 50px -12px rgba(0,0,0,0.15)',
-              overflow: 'hidden',
-              display: 'flex',
-              flexDirection: 'column',
-              position: 'relative',
-            }}
-          >
-            {/* Header */}
-            <div style={{
-              background: theme === 'dark' ? 'rgba(24,24,27,0.85)' : 'rgba(255,255,255,0.85)',
-              backdropFilter: 'blur(20px)',
-              WebkitBackdropFilter: 'blur(20px)',
-              padding: '14px 16px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              borderBottom: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`,
-              zIndex: 10,
-            }}>
-              <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 600, color: '#fff' }}>B</div>
-              <div>
-                <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--color-foreground)', lineHeight: 1.2 }}>Ваш бот</div>
-                <div style={{ fontSize: '12px', color: 'var(--color-foreground-secondary)', marginTop: '2px' }}>bot</div>
+          <div style={{ position: 'relative', width: '320px', margin: '0 auto' }}>
+            {/* Glowing backdrop */}
+            <div style={{ position: 'absolute', inset: -20, background: 'var(--color-primary)', filter: 'blur(60px)', opacity: 0.15, borderRadius: '50%', zIndex: 0, pointerEvents: 'none' }} />
+            
+            <div
+              style={{
+                width: '320px',
+                height: '640px',
+                background: theme === 'dark' ? '#0f0f0f' : '#e4eaf0', // TG default background tint
+                backgroundImage: theme === 'dark' 
+                  ? 'radial-gradient(circle at 50% 0%, #1a1a24 0%, #0f0f0f 100%)' 
+                  : 'radial-gradient(circle at 50% 0%, #f0f4f8 0%, #e4eaf0 100%)',
+                borderRadius: '44px',
+                border: `8px solid ${theme === 'dark' ? '#18181b' : '#ffffff'}`,
+                boxShadow: theme === 'dark' 
+                  ? '0 25px 50px -12px rgba(0,0,0,0.6), inset 0 2px 4px rgba(255,255,255,0.05)' 
+                  : '0 25px 50px -12px rgba(0,0,0,0.15), inset 0 2px 4px rgba(0,0,0,0.05)',
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
+                position: 'relative',
+                zIndex: 1,
+              }}
+            >
+              {/* Hardware Notch */}
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: '50%',
+                transform: 'translateX(-50%)',
+                width: '120px',
+                height: '24px',
+                background: theme === 'dark' ? '#18181b' : '#ffffff',
+                borderBottomLeftRadius: '16px',
+                borderBottomRightRadius: '16px',
+                zIndex: 20
+              }} />
+
+              {/* Header */}
+              <div style={{
+                background: theme === 'dark' ? 'rgba(24,24,27,0.85)' : 'rgba(255,255,255,0.85)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                padding: '24px 16px 14px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                borderBottom: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)'}`,
+                zIndex: 10,
+              }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 600, color: '#fff' }}>B</div>
+                <div>
+                  <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--color-foreground)', lineHeight: 1.2 }}>Ваш бот</div>
+                  <div style={{ fontSize: '12px', color: 'var(--color-foreground-secondary)', marginTop: '2px' }}>bot</div>
+                </div>
               </div>
-            </div>
 
             {/* Chat Area */}
             <div style={{ flex: 1, padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto' }}>
@@ -396,7 +459,8 @@ export const Build = ({
                   <MessageBubble 
                     text={getBlock('start')?.content} 
                     button={getBlock('start')?.buttonText} 
-                    media={true}
+                    media={(getBlock('start') as any)?.media}
+                    theme={theme}
                   />
                 </motion.div>
 
@@ -407,10 +471,12 @@ export const Build = ({
                     initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
                     style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}
                   >
-                    <div style={{ fontSize: '11px', textAlign: 'center', color: '#8B95A1', margin: '8px 0' }}>Через {getBlock('push1')?.delay || '1 час'}</div>
+                    <div style={{ alignSelf: 'center', fontSize: '11px', color: 'var(--color-foreground-tertiary)', background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', padding: '2px 8px', borderRadius: '12px', margin: '8px 0' }}>Через {getBlock('push1')?.delay || '1ч'}</div>
                     <MessageBubble 
                       text={getBlock('push1')?.content} 
                       button={getBlock('push1')?.buttonText} 
+                      media={(getBlock('push1') as any)?.media}
+                      theme={theme}
                     />
                   </motion.div>
                 )}
@@ -422,76 +488,19 @@ export const Build = ({
                     initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
                     style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}
                   >
-                    <div style={{ fontSize: '11px', textAlign: 'center', color: '#8B95A1', margin: '8px 0' }}>Через {getBlock('push2')?.delay || '24 часа'}</div>
+                    <div style={{ alignSelf: 'center', fontSize: '11px', color: 'var(--color-foreground-tertiary)', background: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)', padding: '2px 8px', borderRadius: '12px', margin: '8px 0' }}>Через {getBlock('push2')?.delay || '24ч'}</div>
                     <MessageBubble 
                       text={getBlock('push2')?.content} 
+                      button={getBlock('push2')?.buttonText} 
+                      media={(getBlock('push2') as any)?.media}
+                      theme={theme}
                     />
                   </motion.div>
                 )}
               </AnimatePresence>
             </div>
           </div>
-        </div>
-      </div>      {/* Fixed Bottom Action Bar — always visible */}
-      <div
-        className="fixed left-0 right-0 z-40 flex items-center justify-between px-4 py-3 lg:left-[240px] bottom-[calc(env(safe-area-inset-bottom)+64px)] lg:bottom-0"
-        style={{
-          background: 'var(--color-surface)',
-          borderTop: '1px solid var(--color-border)',
-          gap: '12px',
-          boxShadow: '0 -4px 12px rgba(0,0,0,0.02)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {appState.activeBot ? (
-            <>
-              <div
-                style={{
-                  width: '8px', height: '8px', borderRadius: '50%',
-                  background: appState.isDirty ? 'var(--color-warning)' : 'var(--color-success)',
-                  boxShadow: appState.isDirty ? '0 0 8px var(--color-warning-soft)' : '0 0 8px var(--color-success-soft)'
-                }}
-              />
-              <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-foreground)' }}>
-                {appState.isDirty ? 'Нужно сохранить' : 'Сохранено'}
-              </span>
-            </>
-          ) : (
-            <span style={{ fontSize: '13px', color: 'var(--color-foreground-tertiary)' }}>
-              Публикация от <strong style={{ color: 'var(--color-foreground-secondary)' }}>2 000 ₽</strong>
-            </span>
-          )}
-        </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          {appState.activeBot && (
-            <button
-              onClick={() => setShowConfirm(true)}
-              className="btn btn-secondary"
-              style={{ height: '40px', padding: '0 16px', color: 'var(--color-danger)' }}
-            >
-              Очистить базу
-            </button>
-          )}
-          {appState.activeBot && appState.isDirty && (
-            <button
-              className="btn btn-secondary"
-              style={{ height: '40px', padding: '0 16px' }}
-              onClick={() => {
-                const tg = (window as any).Telegram?.WebApp;
-                if (tg) tg.HapticFeedback.impactOccurred('medium');
-              }}
-            >
-              Сохранить
-            </button>
-          )}
-          <button
-            className="btn btn-action"
-            style={{ height: '40px', padding: '0 20px' }}
-            data-tour="tour-publish-btn"
-            onClick={onPublish}
-          >
-            Опубликовать
-          </button>
+          </div>
         </div>
       </div>
 
@@ -509,7 +518,7 @@ export const Build = ({
                 style={{
                   position: 'fixed', top: '50%', left: '50%', zIndex: 100001,
                   background: 'var(--color-surface)', width: '90%', maxWidth: '340px',
-                  borderRadius: '20px', padding: '24px', boxShadow: 'var(--shadow-float)'
+                  borderRadius: '24px', padding: '24px', boxShadow: 'var(--shadow-float)'
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
@@ -552,6 +561,64 @@ export const Build = ({
         document.body
       )}
     </motion.div>
+
+      {/* Fixed Bottom Action Bar */}
+      <div className="fixed left-0 right-0 z-[45] flex justify-center pointer-events-none lg:pl-[240px] action-bar-fixed">
+        <div className="w-full max-w-[900px] px-4 pointer-events-auto">
+          <div
+            className="flex items-center justify-between gap-4 flex-wrap px-5 py-4 border rounded-[24px] shadow-[0_16px_40px_-12px_rgba(0,0,0,0.2)] bg-[var(--color-surface)] border-[var(--color-border)]"
+          >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {appState.activeBot ? (
+            <>
+              <div
+                style={{
+                  width: '8px', height: '8px', borderRadius: '50%',
+                  background: appState.isDirty ? 'var(--color-warning)' : 'var(--color-success)',
+                  boxShadow: appState.isDirty ? '0 0 8px var(--color-warning-soft)' : '0 0 8px var(--color-success-soft)'
+                }}
+              />
+              <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-foreground)' }}>
+                {appState.isDirty ? 'Не сохранено' : 'Сохранено'}
+              </span>
+            </>
+          ) : (
+            <span style={{ fontSize: '13px', color: 'var(--color-foreground-tertiary)' }}>
+              Публикация от <strong style={{ color: 'var(--color-foreground-secondary)' }}>2 000 ₽</strong>
+            </span>
+          )}
+        </div>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          {appState.activeBot && appState.isDirty && (
+            <button
+              className="btn btn-secondary flex items-center gap-2"
+              style={{ height: '40px', padding: '0 16px' }}
+              onClick={() => {
+                const tg = (window as any).Telegram?.WebApp;
+                if (tg) tg.HapticFeedback.impactOccurred('medium');
+                handleSave();
+              }}
+              disabled={isSaving || !isAllBlocksComplete}
+            >
+              {isSaving ? <RotateCcw size={14} className="animate-spin" /> : 'Сохранить'}
+            </button>
+          )}
+          <button
+            className="btn btn-action flex items-center gap-2"
+            style={{ height: '40px', padding: '0 20px' }}
+            data-tour="tour-publish-btn"
+            onClick={handlePublish}
+            disabled={isPublishing || !isAllBlocksComplete}
+          >
+            {isPublishing ? <RotateCcw size={14} className="animate-spin" /> : 'Опубликовать'}
+          </button>
+        </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Spacer to prevent content from hiding behind the fixed action bar */}
+      <div className="h-[90px] w-full shrink-0" />
     </div>
   );
 };

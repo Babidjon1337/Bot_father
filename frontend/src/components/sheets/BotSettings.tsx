@@ -59,31 +59,27 @@ export const BotSettings = ({ appState, onClose, onSave }: BotSettingsProps) => 
       <motion.div
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
         onClick={onClose}
-        style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', zIndex: 40, backdropFilter: 'blur(4px)' }}
+        className="fixed inset-0 bg-black/40 backdrop-blur-md z-[100]"
       />
-      <motion.div
-        initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
-        transition={{ type: 'spring', damping: 28, stiffness: 240 }}
-        style={{
-          position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50,
-          background: 'var(--color-surface)',
-          borderRadius: '20px 20px 0 0',
-          borderTop: '1px solid var(--color-border)',
-          padding: '24px 20px',
-          paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)',
-          boxShadow: 'var(--shadow-sheet)',
-          maxWidth: '540px',
-          margin: '0 auto',
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-          <h3 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--color-foreground)' }}>Главные настройки</h3>
-          <button onClick={onClose} style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--color-surface-2)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <X size={15} style={{ color: 'var(--color-foreground-secondary)' }} />
-          </button>
-        </div>
+      
+      {/* Centering container */}
+      <div className="fixed inset-0 z-[101] flex items-end lg:items-center justify-center pointer-events-none p-0 lg:p-4">
+        <motion.div
+          initial={{ y: '100%', opacity: 1 }} 
+          animate={{ y: 0, opacity: 1 }} 
+          exit={{ y: '100%', opacity: 1 }}
+          transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+          className="w-full lg:max-w-[540px] bg-[var(--color-surface)] rounded-t-[24px] lg:rounded-[24px] shadow-2xl pointer-events-auto flex flex-col max-h-[90vh] border border-transparent lg:border-[var(--color-border)] overflow-hidden"
+        >
+          {/* Header */}
+          <div className="flex justify-between items-center p-5 border-b border-[var(--color-border)] shrink-0">
+            <h3 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--color-foreground)' }}>Главные настройки</h3>
+            <button onClick={onClose} className="w-8 h-8 rounded-full bg-[var(--color-surface-2)] border-none cursor-pointer flex items-center justify-center hover:bg-[var(--color-border)] transition-colors">
+              <X size={16} style={{ color: 'var(--color-foreground-secondary)' }} />
+            </button>
+          </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxHeight: '60vh', overflowY: 'auto', padding: '8px', margin: '-8px' }}>
+          <div className="flex-1 overflow-y-auto px-5 py-6 flex flex-col gap-6">
 
           {/* Name */}
           <div>
@@ -217,16 +213,16 @@ export const BotSettings = ({ appState, onClose, onSave }: BotSettingsProps) => 
           </div>
         </div>
 
-        <div style={{ marginTop: '24px' }}>
+        <div className="p-5 border-t border-[var(--color-border)] shrink-0">
           <button
             onClick={handleSave}
-            className="btn btn-action"
-            style={{ width: '100%', height: '48px', fontSize: '15px' }}
+            className="btn btn-action w-full h-[48px] text-[15px]"
           >
             Сохранить изменения
           </button>
         </div>
-      </motion.div>
+        </motion.div>
+      </div>
     </>
   );
 };

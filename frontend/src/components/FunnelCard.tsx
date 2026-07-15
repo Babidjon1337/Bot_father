@@ -15,28 +15,37 @@ export const FunnelCard = ({ title, isComplete, defaultExpanded = false, childre
 
   return (
     <div
-      className="card-saas"
-      style={{ padding: 0, overflow: 'hidden' }}
+      className="transition-all duration-300 relative group"
+      style={{ 
+        padding: 0, 
+        overflow: 'hidden',
+        background: 'var(--color-surface)',
+        borderRadius: '24px',
+        border: isExpanded ? '1px solid var(--color-border-strong)' : '1px solid var(--color-border)',
+        boxShadow: isExpanded ? '0 12px 32px -12px rgba(0,0,0,0.08)' : '0 4px 12px -8px rgba(0,0,0,0.05)',
+      }}
     >
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center justify-between transition-colors duration-150"
+        className="w-full flex items-center justify-between transition-colors duration-200 hover:bg-[var(--color-surface-2)]"
         style={{
-          padding: '14px 20px',
-          background: isExpanded ? 'var(--color-surface)' : 'var(--color-surface)',
-          borderBottom: isExpanded ? '1px solid var(--color-border)' : 'none',
+          padding: '16px 20px',
+          background: isExpanded ? 'var(--color-surface-2)' : 'transparent',
+          borderBottom: isExpanded ? '1px solid var(--color-border)' : '1px solid transparent',
         }}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           <div
-            className="status-dot"
             style={{
-              background: isComplete ? 'var(--color-success)' : 'var(--color-border-strong)',
-              width: '7px',
-              height: '7px',
+              background: isComplete ? 'var(--color-success)' : 'var(--color-danger)',
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              boxShadow: isComplete ? '0 0 8px var(--color-success-soft)' : '0 0 8px var(--color-danger-soft)',
+              transition: 'all 0.3s ease'
             }}
           />
-          <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--color-foreground)' }}>{title}</span>
+          <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--color-foreground)', letterSpacing: '-0.01em' }}>{title}</span>
         </div>
         <motion.div animate={{ rotate: isExpanded ? 90 : 0 }} transition={{ duration: 0.15 }}>
           <ChevronRight size={16} style={{ color: 'var(--color-foreground-tertiary)' }} />
@@ -51,7 +60,7 @@ export const FunnelCard = ({ title, isComplete, defaultExpanded = false, childre
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.2, ease: 'easeInOut' }}
           >
-            <div style={{ padding: '20px' }}>
+            <div style={{ padding: '24px' }}>
               {children}
             </div>
           </motion.div>

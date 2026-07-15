@@ -20,7 +20,7 @@ export const BotSwitcher = ({ bots, activeBotId, subscriptionStatus, onSelect, o
       <motion.div
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
         onClick={onClose}
-        style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.25)', zIndex: 40 }}
+        className="fixed inset-0 bg-transparent z-[100]"
       />
       <motion.div
         initial={{ opacity: 0, y: -8, scale: 0.97 }}
@@ -28,7 +28,7 @@ export const BotSwitcher = ({ bots, activeBotId, subscriptionStatus, onSelect, o
         exit={{ opacity: 0, y: -8, scale: 0.97 }}
         transition={{ duration: 0.15 }}
         style={{
-          position: 'fixed', top: '64px', left: '16px', right: '16px', zIndex: 50,
+          position: 'fixed', top: '64px', left: '16px', right: '16px', zIndex: 101,
           background: 'var(--color-surface)',
           borderRadius: 'var(--radius-lg)',
           border: '1px solid var(--color-border)',
@@ -97,45 +97,33 @@ export const BotSwitcher = ({ bots, activeBotId, subscriptionStatus, onSelect, o
           </div>
         ))}
 
-        {/* Locked slot (shown to non-PRO users who already have 1 bot, to tease PRO) */}
-        {!isPro && bots.length >= 1 && (
-          <div
-            style={{
-              display: 'flex', alignItems: 'center', gap: '10px',
-              padding: '10px 12px', borderRadius: 'var(--radius-xs)',
-              opacity: 0.6,
-            }}
-          >
-            <div style={{
-              width: '32px', height: '32px', borderRadius: '8px', flexShrink: 0,
-              border: '1.5px dashed var(--color-border-strong)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <Lock size={13} style={{ color: 'var(--color-foreground-tertiary)' }} />
-            </div>
-            <div>
-              <div style={{ fontSize: '13px', color: 'var(--color-foreground-secondary)' }}>Слот #2 — заблокирован</div>
-              <div style={{ fontSize: '11px', color: 'var(--color-foreground-tertiary)' }}>PRO открывает до 10 ботов</div>
-            </div>
-          </div>
-        )}
+
 
         <div style={{ borderTop: '1px solid var(--color-border)', marginTop: '4px', paddingTop: '4px' }}>
           <button
-            onClick={() => { onClose(); onAddBot(); }}
+            onClick={() => { 
+              if (!isPro && bots.length >= 1) return;
+              onClose(); 
+              onAddBot(); 
+            }}
             style={{
               width: '100%', display: 'flex', alignItems: 'center', gap: '10px',
               padding: '10px 12px', borderRadius: 'var(--radius-xs)', border: 'none',
-              background: 'transparent', cursor: 'pointer', transition: 'background 150ms ease',
-              color: 'var(--color-foreground-secondary)',
+              background: 'transparent', cursor: (!isPro && bots.length >= 1) ? 'not-allowed' : 'pointer', transition: 'background 150ms ease',
+              color: (!isPro && bots.length >= 1) ? 'var(--color-foreground-tertiary)' : 'var(--color-foreground-secondary)',
+              opacity: (!isPro && bots.length >= 1) ? 0.6 : 1,
             }}
           >
             <div style={{ width: '32px', height: '32px', borderRadius: '8px', border: '1.5px dashed var(--color-border-strong)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <Plus size={14} />
+              {(!isPro && bots.length >= 1) ? <Lock size={14} /> : <Plus size={14} />}
             </div>
             <div style={{ textAlign: 'left' }}>
               <div style={{ fontSize: '14px' }}>Добавить бота</div>
-              {!isPro && <div style={{ fontSize: '11px', color: 'var(--color-warning)' }}>Разовый 2 000 ₽ или PRO</div>}
+              {!isPro && bots.length >= 1 ? (
+                <div style={{ fontSize: '11px', color: 'var(--color-warning)' }}>Доступно по PRO подписке</div>
+              ) : (
+                <div style={{ fontSize: '11px', color: 'var(--color-foreground-tertiary)' }}>Сборка бесплатно</div>
+              )}
             </div>
           </button>
         </div>

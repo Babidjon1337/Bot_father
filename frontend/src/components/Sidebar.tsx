@@ -1,4 +1,4 @@
-import { Home, Layers, User, GitBranch, Crown, Settings, Moon, ChevronDown, Star, Bot } from 'lucide-react';
+import { Home, Layers, User, GitBranch, Crown, Moon, Sun, ChevronDown, Star, Bot } from 'lucide-react';
 import { cn } from '../utils';
 import type { TabType, AppState, SheetType } from '../types';
 
@@ -15,7 +15,8 @@ interface SidebarProps {
 const MAIN_NAV: { id: TabType; icon: React.FC<any>; label: string; activeColor: string }[] = [
   { id: 'home',    icon: Home,      label: 'Статистика', activeColor: 'var(--color-primary)'  },
   { id: 'build',   icon: Layers,    label: 'Воронка', activeColor: 'var(--color-accent)'  },
-  { id: 'profile', icon: User,      label: 'Профиль', activeColor: 'var(--color-success)'  },
+  { id: 'manage',  icon: Bot,       label: 'Мои боты', activeColor: 'var(--color-warning)'  },
+  { id: 'flow',    icon: GitBranch, label: 'Схема логики', activeColor: '#ec4899' },
 ];
 
 export const Sidebar = ({ activeTab, setActiveTab, appState, setSheet, theme, toggleTheme, onCreateBot }: SidebarProps) => {
@@ -24,117 +25,60 @@ export const Sidebar = ({ activeTab, setActiveTab, appState, setSheet, theme, to
 
   return (
     <aside
-      className="hidden lg:flex flex-col w-[240px] shrink-0 fixed top-0 left-0 bottom-0"
+      className="hidden lg:flex flex-col w-[260px] shrink-0 fixed top-0 left-0 bottom-0 z-50 transition-colors"
       style={{
-        background: 'var(--color-sidebar)',
+        background: 'var(--color-surface)',
         borderRight: '1px solid var(--color-border)',
       }}
     >
       {/* Logo */}
       <div 
-        className="px-5 flex justify-center items-center shrink-0" 
-        style={{ 
-          height: '74px', 
-          borderBottom: '1px solid var(--color-border)',
-          background: 'var(--color-sidebar)'
-        }}
+        className="px-6 flex items-center shrink-0" 
+        style={{ height: '80px' }}
       >
-        <span
-          style={{
-            fontSize: '20px',
-            fontWeight: 700,
-            color: 'var(--color-foreground)',
-            letterSpacing: '-0.02em',
-          }}
-        >
-          Bot Father
-        </span>
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[var(--color-primary)] to-[var(--color-accent)] flex items-center justify-center shadow-md">
+            <Bot size={18} className="text-white" />
+          </div>
+          <span
+            style={{
+              fontSize: '18px',
+              fontWeight: 800,
+              color: 'var(--color-foreground)',
+              letterSpacing: '-0.03em',
+            }}
+          >
+            Bot Father
+          </span>
+        </div>
       </div>
 
       {/* Bot switcher */}
-      <div className="px-3 pt-4">
-        {activeBot ? (
-          <button
-            onClick={() => setSheet('bot_switcher')}
-            className={cn(
-              "w-full flex items-center gap-3 px-2 py-2 rounded-[var(--radius-sm)] text-left",
-              "hover:bg-[var(--color-surface-2)] transition-colors border border-transparent"
-            )}
-          >
-            <div
-              className="w-7 h-7 rounded-md flex items-center justify-center text-white shrink-0"
-              style={{
-                background: 'var(--color-primary)',
-                fontSize: '11px',
-                fontWeight: 600,
-              }}
-            >
-              {activeBot.name.substring(0, 2).toUpperCase()}
+      <div className="px-4 mb-2">
+        <button
+          onClick={() => activeBot ? setSheet('bot_switcher') : onCreateBot()}
+          className="w-full flex items-center justify-between p-2 rounded-xl transition-all duration-200 hover:bg-[var(--color-surface-2)] border border-transparent hover:border-[var(--color-border)] group"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-[var(--color-primary-soft)] flex items-center justify-center text-[var(--color-primary)] font-bold text-[13px]">
+              {activeBot ? activeBot.name.substring(0, 2).toUpperCase() : <Bot size={16} />}
             </div>
-            <div className="flex-1 min-w-0">
-              <div
-                className="truncate"
-                style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-foreground)' }}
-              >
-                {activeBot.name}
-              </div>
-              <div
-                className="truncate flex items-center gap-1"
-                style={{ fontSize: '11px', color: 'var(--color-foreground-tertiary)' }}
-              >
-                <span
-                  className="status-dot"
-                  style={{
-                    background: activeBot.status === 'active'
-                      ? 'var(--color-success)'
-                      : 'var(--color-warning)',
-                    width: '5px',
-                    height: '5px',
-                  }}
-                />
-                {activeBot.status === 'active' ? 'Активен' : 'Черновик'}
-              </div>
+            <div className="flex flex-col text-left">
+              <span className="text-[14px] font-semibold text-[var(--color-foreground)] leading-tight truncate max-w-[120px]">
+                {activeBot ? activeBot.name : 'Выберите бота'}
+              </span>
+              <span className="text-[11px] text-[var(--color-foreground-tertiary)] mt-[2px]">
+                {activeBot ? (activeBot.status === 'active' ? 'В работе' : 'Выключен') : 'Нет активного бота'}
+              </span>
             </div>
-            <ChevronDown size={14} style={{ color: 'var(--color-foreground-tertiary)', flexShrink: 0 }} />
-          </button>
-        ) : (
-          <button
-            onClick={onCreateBot}
-            className={cn(
-              "w-full flex items-center gap-3 px-2 py-2 rounded-[var(--radius-sm)] text-left",
-              "hover:bg-[var(--color-surface-2)] transition-colors border border-dashed border-[var(--color-border-strong)]"
-            )}
-          >
-            <div
-              className="w-7 h-7 rounded-md flex items-center justify-center shrink-0"
-              style={{
-                background: 'var(--color-surface-2)',
-                color: 'var(--color-foreground-tertiary)',
-              }}
-            >
-              <Bot size={14} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div
-                className="truncate"
-                style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-foreground-secondary)' }}
-              >
-                Нет активного бота
-              </div>
-              <div
-                className="truncate"
-                style={{ fontSize: '11px', color: 'var(--color-primary)' }}
-              >
-                Создать бота
-              </div>
-            </div>
-          </button>
-        )}
+          </div>
+          <ChevronDown size={16} className="text-[var(--color-foreground-tertiary)] transition-transform group-hover:translate-y-0.5" />
+        </button>
       </div>
 
       {/* Navigation */}
-      <nav aria-label="Основная навигация" className="flex-1 min-h-0 px-3 pt-3 pb-2 flex flex-col gap-0.5 overflow-y-auto overflow-x-hidden custom-scrollbar">
-        <div className="nav-label mb-2">Навигация</div>
+      <nav aria-label="Основная навигация" className="flex-1 min-h-0 px-4 pt-4 pb-4 flex flex-col gap-1.5 overflow-y-auto overflow-x-hidden custom-scrollbar">
+        <div className="px-3 mb-1" style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-foreground-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Меню</div>
 
         {MAIN_NAV.map((item) => {
           const isActive = activeTab === item.id;
@@ -142,190 +86,141 @@ export const Sidebar = ({ activeTab, setActiveTab, appState, setSheet, theme, to
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
-              className={cn('nav-item', isActive && 'active')}
+              className={cn(
+                'flex items-center gap-3 w-full px-3 py-2.5 rounded-xl transition-all duration-300 group relative text-left'
+              )}
               style={{
                 color: isActive ? 'var(--color-foreground)' : 'var(--color-foreground-secondary)',
                 background: isActive ? 'var(--color-surface-2)' : 'transparent',
               }}
             >
+              {isActive && (
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 rounded-r-full" style={{ background: item.activeColor }} />
+              )}
               <div
-                data-tour={item.id === 'home' ? 'tour-nav-stats' : item.id === 'profile' ? 'tour-nav-profile' : item.id === 'build' ? 'tour-funnel-tab' : undefined}
-                style={{ display: 'flex', alignItems: 'center', gap: '12px' }}
+                className={cn("flex items-center justify-center w-8 h-8 rounded-[10px] transition-transform duration-300", isActive ? "scale-105 shadow-sm" : "group-hover:scale-110")}
+                style={{
+                  background: isActive ? 'var(--color-surface)' : 'transparent',
+                  color: isActive ? item.activeColor : 'var(--color-foreground-tertiary)',
+                }}
               >
-                <item.icon
-                  size={18}
-                  strokeWidth={isActive ? 2 : 1.75}
-                  style={{
-                    flexShrink: 0,
-                    color: item.activeColor,
-                    transform: isActive ? 'scale(1.15)' : 'scale(1)',
-                    transition: 'transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)'
-                  }}
-                />
-                {item.label}
+                <item.icon size={18} strokeWidth={isActive ? 2.5 : 2} />
               </div>
+              <span style={{ fontSize: '14px', fontWeight: isActive ? 700 : 500 }}>{item.label}</span>
             </button>
           );
         })}
 
-        {/* Desktop-only: Flow map */}
-        <div className="divider" style={{ margin: '12px 0' }} />
-        <div className="nav-label mb-2" style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-foreground-tertiary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Инструменты</div>
+      </nav>
+
+      {/* Bottom controls */}
+      <div className="mt-auto flex flex-col gap-3 p-4 shrink-0 border-t border-[var(--color-border)]">
+        
+        {/* Profile Button */}
         <button
-          onClick={() => setActiveTab('flow')}
-          className={cn('nav-item', activeTab === 'flow' && 'active')}
+          onClick={() => setActiveTab('profile')}
+          className={cn(
+            'flex items-center gap-3 w-full px-3 py-2.5 rounded-xl transition-all duration-300 group relative text-left'
+          )}
           style={{
-            color: activeTab === 'flow' ? 'var(--color-foreground)' : 'var(--color-foreground-secondary)',
-            background: activeTab === 'flow' ? 'var(--color-surface-2)' : 'transparent',
+            color: activeTab === 'profile' ? 'var(--color-foreground)' : 'var(--color-foreground-secondary)',
+            background: activeTab === 'profile' ? 'var(--color-surface-2)' : 'transparent',
           }}
         >
-          <GitBranch
-            size={18}
-            strokeWidth={activeTab === 'flow' ? 2 : 1.75}
-            style={{ 
-              flexShrink: 0, 
-              color: 'var(--color-warning)',
-              transform: activeTab === 'flow' ? 'scale(1.15)' : 'scale(1)',
-              transition: 'transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)'
-            }}
-          />
-          Схема логики
-        </button>
-      </nav>
-        {/* Bottom controls */}
-        <div className="mt-auto flex flex-col gap-1.5 pt-2 px-3 pb-3 shrink-0">
-          <button
-            onClick={() => setActiveTab('subscription')}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors text-left"
+          {activeTab === 'profile' && (
+            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 rounded-r-full" style={{ background: 'var(--color-success)' }} />
+          )}
+          <div
+            className={cn("flex items-center justify-center w-8 h-8 rounded-[10px] transition-transform duration-300", activeTab === 'profile' ? "scale-105 shadow-sm" : "group-hover:scale-110")}
             style={{
-              background: activeTab === 'subscription' ? 'var(--color-surface-2)' : 'var(--color-surface)',
-              border: '1px solid',
-              borderColor: activeTab === 'subscription' ? 'var(--color-border)' : 'var(--color-surface)',
-              color: activeTab === 'subscription' ? 'var(--color-primary)' : 'var(--color-foreground)',
+              background: activeTab === 'profile' ? 'var(--color-surface)' : 'transparent',
+              color: activeTab === 'profile' ? 'var(--color-success)' : 'var(--color-foreground-tertiary)',
             }}
           >
-            <Crown size={18} className={activeTab === 'subscription' ? "text-[var(--color-primary)]" : "text-[var(--color-foreground-secondary)]"} />
-            <span style={{ fontSize: '14px', fontWeight: 500, color: activeTab === 'subscription' ? 'var(--color-primary)' : 'var(--color-foreground)' }}>Подписка</span>
-          </button>
+            <User size={18} strokeWidth={activeTab === 'profile' ? 2.5 : 2} />
+          </div>
+          <span style={{ fontSize: '14px', fontWeight: activeTab === 'profile' ? 700 : 500 }}>Профиль</span>
+        </button>
 
-          {/* Tariff Card */}
-          {isSubscribed ? (
-            <div className="mt-1 magic-border-container shadow-sm" style={{ borderRadius: 'var(--radius-xl)' }}>
-              <div 
-                className="magic-border-content p-3" 
-                style={{ borderRadius: 'calc(var(--radius-xl) - 1px)', background: 'var(--color-surface)' }}
-              >
-                <div style={{ fontSize: '12px', color: 'var(--color-foreground-secondary)' }} className="mb-2">Ваш тариф</div>
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ background: 'var(--color-accent-soft)' }}>
-                    <Crown size={20} style={{ color: 'var(--color-accent)', fill: 'var(--color-accent)' }} />
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--color-foreground)', marginBottom: '2px' }}>PRO</div>
-                    <div style={{ fontSize: '12px', color: 'var(--color-foreground-secondary)' }}>
-                      <span style={{ color: 'var(--color-accent)', fontWeight: 600 }}>{appState.bots.length}</span> из 10 ботов
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="status-dot" style={{ background: 'var(--color-success)', width: '6px', height: '6px' }} />
-                  <span style={{ fontSize: '12px', color: 'var(--color-foreground-secondary)' }}>Активен</span>
-                </div>
-                <button
-                  onClick={() => setActiveTab('manage')}
-                  className="w-full flex items-center justify-center gap-2 py-1.5 rounded-lg border border-[var(--color-border)] hover:bg-[var(--color-surface-2)] transition-colors"
-                >
-                  <Settings size={14} className="text-[var(--color-foreground-secondary)]" />
-                  <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-foreground)' }}>Управление</span>
-                </button>
+        {/* Tariff Card */}
+        {isSubscribed ? (
+          <div className="bg-[var(--color-surface-2)] rounded-[16px] p-3 shadow-sm border border-[var(--color-border)]">
+            <div className="flex items-center justify-between mb-2">
+              <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-foreground-tertiary)', textTransform: 'uppercase' }}>Ваш тариф</div>
+              <div className="flex items-center gap-1.5 px-1.5 py-0.5 rounded-md bg-[var(--color-success-soft)] text-[var(--color-success)] text-[10px] font-bold">
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-success)] animate-pulse" />
+                Активен
               </div>
             </div>
-          ) : (
-            <div 
-              className="mt-1 bg-[var(--color-surface)] border rounded-xl p-3 transition-colors"
-              style={{
-                borderColor: appState.bots.length > 0 ? 'var(--color-primary)' : 'var(--color-border)',
-                boxShadow: appState.bots.length > 0 ? '0 0 15px var(--color-primary-soft)' : 'none'
-              }}
-            >
-              <div style={{ fontSize: '12px', color: 'var(--color-foreground-secondary)' }} className="mb-2">Ваш тариф</div>
-              
-              {/* State 1: Не выбран */}
-              {!appState.bots.length && (
-                <>
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ background: 'var(--color-surface-2)' }}>
-                      <User size={20} style={{ color: 'var(--color-foreground-tertiary)' }} />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--color-foreground)', marginBottom: '2px' }}>Не выбран</div>
-                      <div style={{ fontSize: '12px', color: 'var(--color-foreground-secondary)' }}>Ботов: 0</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="status-dot" style={{ background: 'var(--color-foreground-tertiary)', width: '6px', height: '6px' }} />
-                    <span style={{ fontSize: '12px', color: 'var(--color-foreground-secondary)' }}>Не активирован</span>
-                  </div>
-                  <button
-                    onClick={() => setActiveTab('manage')}
-                    className="w-full flex items-center justify-center gap-2 py-1.5 rounded-lg border border-[var(--color-border)] hover:bg-[var(--color-surface-2)] transition-colors"
-                  >
-                    <Settings size={14} className="text-[var(--color-foreground-secondary)]" />
-                    <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-foreground)' }}>Управление</span>
-                  </button>
-                </>
-              )}
-
-              {/* State 2: Базовый */}
-              {appState.bots.length > 0 && (
-                <>
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ background: 'var(--color-primary-soft)' }}>
-                      <Star size={20} style={{ color: 'var(--color-primary)', fill: 'var(--color-primary)' }} />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--color-foreground)', marginBottom: '2px' }}>Базовый</div>
-                      <div style={{ fontSize: '12px', color: 'var(--color-foreground-secondary)' }}>
-                        <span style={{ color: 'var(--color-primary)', fontWeight: 600 }}>{appState.bots.length}</span> из 1 ботов
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="status-dot" style={{ background: 'var(--color-success)', width: '6px', height: '6px' }} />
-                    <span style={{ fontSize: '12px', color: 'var(--color-foreground-secondary)' }}>Активен</span>
-                  </div>
-                  <button
-                    onClick={() => setActiveTab('manage')}
-                    className="w-full flex items-center justify-center gap-2 py-1.5 rounded-lg border border-[var(--color-border)] hover:bg-[var(--color-surface-2)] transition-colors"
-                  >
-                    <Settings size={14} className="text-[var(--color-foreground-secondary)]" />
-                    <span style={{ fontSize: '13px', fontWeight: 500, color: 'var(--color-foreground)' }}>Управление</span>
-                  </button>
-                </>
-              )}
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#4F46E5] to-[#C026D3] flex items-center justify-center shrink-0 shadow-md">
+                <Crown size={20} className="text-white" />
+              </div>
+              <div>
+                <div style={{ fontSize: '15px', fontWeight: 800, color: 'var(--color-foreground)' }}>PRO</div>
+                <div style={{ fontSize: '12px', color: 'var(--color-foreground-secondary)' }}>
+                  <span style={{ color: 'var(--color-foreground)', fontWeight: 700 }}>{appState.bots.length}</span> из 10 ботов
+                </div>
+              </div>
             </div>
-          )}
-
-          <button
-            onClick={toggleTheme}
-            className="mt-1 flex items-center gap-3 px-3 py-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:bg-[var(--color-surface-2)] transition-colors text-left"
+            <button
+              onClick={() => setActiveTab('subscription')}
+              className="w-full flex items-center justify-center py-2 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] hover:border-[var(--color-primary-soft)] hover:text-[var(--color-primary)] transition-all duration-300 shadow-sm group"
+            >
+              <span style={{ fontSize: '13px', fontWeight: 600 }} className="transition-colors">Управление</span>
+            </button>
+          </div>
+        ) : (
+          <div 
+            className="bg-[var(--color-surface)] border-2 border-[var(--color-primary-soft)] rounded-[16px] p-3 transition-colors relative overflow-hidden group"
           >
-            <Moon size={18} className="text-[var(--color-foreground-secondary)]" />
-            <span style={{ fontSize: '14px', fontWeight: 500, color: 'var(--color-foreground)', flex: 1 }}>Тёмная тема</span>
-            {/* Toggle switch */}
-            <div 
-              className="w-8 h-5 rounded-full relative transition-colors duration-200"
-              style={{ background: theme === 'dark' ? 'var(--color-primary)' : 'var(--color-border)' }}
-            >
-              <div 
-                className="w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all duration-200 shadow-sm"
-                style={{ 
-                  left: theme === 'dark' ? 'calc(100% - 18px)' : '2px',
-                }}
-              />
+            <div className="absolute inset-0 bg-gradient-to-br from-[var(--color-primary-soft)] to-transparent opacity-50 pointer-events-none" />
+            <div className="relative z-10">
+              <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-foreground-tertiary)', textTransform: 'uppercase', marginBottom: '8px' }}>Ваш тариф</div>
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-xl bg-[var(--color-surface-2)] flex items-center justify-center shrink-0 border border-[var(--color-border)] group-hover:scale-105 transition-transform duration-300">
+                  <Star size={18} className="text-[var(--color-primary)]" />
+                </div>
+                <div>
+                  <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--color-foreground)' }}>{appState.bots.length > 0 ? 'Базовый' : 'Бесплатный'}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--color-foreground-secondary)' }}>
+                    Ботов: <span style={{ color: 'var(--color-foreground)', fontWeight: 600 }}>{appState.bots.length}</span>
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => setActiveTab('subscription')}
+                className="w-full flex items-center justify-center py-2 rounded-xl bg-[var(--color-primary)] text-white hover:opacity-90 transition-opacity shadow-md"
+              >
+                <span style={{ fontSize: '13px', fontWeight: 600 }}>Улучшить тариф</span>
+              </button>
             </div>
-          </button>
-        </div>
-      </aside>
+          </div>
+        )}
+
+        <button
+          onClick={toggleTheme}
+          className="flex items-center justify-between w-full px-4 py-2.5 rounded-[14px] bg-[var(--color-surface-2)] hover:bg-[var(--color-border)] transition-colors text-left group"
+        >
+          <div className="flex items-center gap-3">
+            {theme === 'dark' ? (
+              <Moon size={16} className="text-[var(--color-foreground-secondary)] group-hover:text-[var(--color-primary)] transition-colors" />
+            ) : (
+              <Sun size={16} className="text-[var(--color-foreground-secondary)] group-hover:text-[var(--color-primary)] transition-colors" />
+            )}
+            <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-foreground)' }}>Тема</span>
+          </div>
+          <div 
+            className="w-7 h-4 rounded-full relative transition-colors duration-300"
+            style={{ background: theme === 'dark' ? 'var(--color-primary)' : 'var(--color-border-strong)' }}
+          >
+            <div 
+              className="w-3 h-3 rounded-full bg-white absolute top-0.5 transition-all duration-300 shadow-sm"
+              style={{ left: theme === 'dark' ? 'calc(100% - 14px)' : '2px' }}
+            />
+          </div>
+        </button>
+      </div>
+    </aside>
   );
 };

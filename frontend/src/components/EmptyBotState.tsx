@@ -38,7 +38,7 @@ export const EmptyBotState = ({
           position: 'relative',
           overflow: 'hidden',
           border: '1px solid var(--color-border)',
-          borderRadius: '20px',
+          borderRadius: '24px',
           textAlign: 'center',
           background: 'linear-gradient(180deg, var(--color-surface) 0%, var(--color-surface-2) 100%)'
         }}
